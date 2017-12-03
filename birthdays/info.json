@@ -1,6 +1,6 @@
 {
     "AUTHOR" : "ZeLarpMaster#0924",
-    "INSTALL_MSG" : "A install message that appears as soon as the end user does !cog install repo cogname",
+    "INSTALL_MSG" : "Enjoy your birthday cog!\nRemember to setup the role and channel or else it will only act as a list of birthdays :wink:",
     "NAME" : "Birthdays",
     "SHORT" : "Announce birthdays and give a role during people's birthdays",
     "DESCRIPTION" : "Users set their birthday and optionaly their age and they automatically receive a role on their birthday with an announcement in a channel",
