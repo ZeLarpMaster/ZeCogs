@@ -11,7 +11,7 @@ from .utils import checks
 from .utils.dataIO import dataIO
 
 
-class ReactRole:
+class ReactRoles:
     """Associate emojis on messages with roles to gain/lose roles when clicking on reactions"""
 
     # File related constants
@@ -340,6 +340,6 @@ Gave a total of {g} roles."""
 
 def setup(bot):
     # Creating the cog
-    c = ReactRole(bot)
+    c = ReactRoles(bot)
     # Finally, add the cog to the bot.
     bot.add_cog(c)
