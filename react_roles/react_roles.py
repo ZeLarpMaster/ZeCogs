@@ -12,7 +12,9 @@ from .utils.dataIO import dataIO
 
 
 class ReactRoles:
-    """Associate emojis on messages with roles to gain/lose roles when clicking on reactions"""
+    """Associate emojis on messages with roles to gain/lose roles when clicking on reactions
+
+    Requires ClientModification to properly work"""
 
     # File related constants
     DATA_FOLDER = "data/react_roles"
@@ -296,12 +298,12 @@ Gave a total of {g} roles."""
     # Client Modification Proxy
     def add_cache_message(self, message):
         cm = self.bot.get_cog("ClientModification")
-        if cm:
+        if cm is not None:
             cm.add_cached_message(message)
     
     def remove_cache_message(self, message):
         cm = self.bot.get_cog("ClientModification")
-        if cm:
+        if cm is not None:
             cm.remove_cached_message(message)
     
     # Config
