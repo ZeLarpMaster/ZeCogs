@@ -7,7 +7,7 @@ Meant to be used with Red's downloader by adding it with:
 ## Having issues?
 Try to find your answer in the [Frequently Asked Questions](#frequently-asked-questions).
 
-If it's not there already, [open an issue](./issues).
+If it's not there already, [open an issue](../../issues).
 
 # Contact
 You can find me on the [/r/RocketLeague Discord server](https://discord.gg/rocketleague).
