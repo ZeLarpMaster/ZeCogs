@@ -42,6 +42,8 @@ Gave a total of {g} roles."""
     REACTION_CLEAN_START = ROLE_UNBOUND + "Removing linked reactions..."
     PROGRESS_REMOVED = ROLE_UNBOUND + "Removed **{} / {}** reactions..."
     REACTION_CLEAN_DONE = ROLE_UNBOUND + "Removed **{}** reactions."
+    NO_CLIENT_MODIFICATION = "\nYou do not have the client_modification cog installed. " \
+                             "You may expect roles to not work after restarting."
 
     def __init__(self, bot):
         self.bot = bot
@@ -67,16 +69,17 @@ Gave a total of {g} roles."""
         except:  # Didn't want the event listener to stop working when a random error happens
             traceback.print_exc()
     
-    async def on_message_delete(self, message):
-        self.remove_cache_message(message)
+    async def on_message_delete(self, message: discord.Message):
         # Remove the config too
         channel = message.channel
-        server = channel.server
-        channel_conf = self.get_config(server.id).get(channel.id, {})
-        if message.id in channel_conf:
-            del channel_conf[message.id]
-        # And the cache
-        self.remove_message_from_cache(server.id, channel.id, message.id)
+        if not channel.is_private:
+            self.remove_cache_message(message)
+            server = channel.server
+            channel_conf = self.get_config(server.id).get(channel.id, {})
+            if message.id in channel_conf:
+                del channel_conf[message.id]
+            # And the cache
+            self.remove_message_from_cache(server.id, channel.id, message.id)
     
     async def _init_bot_manipulation(self):
         await self.bot.wait_until_ready()
@@ -136,6 +139,8 @@ Gave a total of {g} roles."""
                         msg_conf[emoji_id] = role.id
                         self.save_data()
                         response = self.ROLE_SUCCESSFULLY_BOUND
+                        if self.bot.get_cog("ClientModification") is None:
+                            response += self.NO_CLIENT_MODIFICATION
         await self.bot.send_message(ctx.message.channel, response)
     
     @_roles.command(name="remove", pass_context=True, no_pm=True)
