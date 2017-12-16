@@ -1,0 +1,10 @@
+{
+    "AUTHOR" : "ZeLarpMaster#0924",
+    "INSTALL_MSG" : "Thanks for installing my voice channel generation cog and enjoy!\nTo get a category's ID you can right click it and click Copy ID with the developer mode enabled.\nTo enable the developer go to Settings > Appearance > Advanced > Developer Mode",
+    "NAME" : "VoiceChannelGenerator",
+    "SHORT" : "Keep a fixed number of empty voice channels all the time",
+    "DESCRIPTION" : "Creates new empty voice channels everytime there isn't enough empty voice channels until a maximum number of generated channels has been made.",
+    "TAGS" : ["voice", "channel", "generation"],
+    "REQUIREMENTS" : [],
+    "HIDDEN" : false
+}
