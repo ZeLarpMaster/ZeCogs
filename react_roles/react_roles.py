@@ -35,7 +35,8 @@ Gave a total of {g} roles."""
     ALREADY_BOUND = ":x: The emoji is already bound on that message."
     NOT_IN_SERVER = ":x: The channel must be in a server."
     ROLE_NOT_FOUND = ":x: Role not found on the given channel's server."
-    EMOJI_NOT_FOUND = ":x: Emoji not found on the given channel's server or unicode emojis."
+    EMOJI_NOT_FOUND = ":x: Emoji not found on the given channel's server or in unicode emojis.\n" \
+                      "Or I may not have permissions to add reactions in the channel."
     ROLE_SUCCESSFULLY_BOUND = ":white_check_mark: The role has been bound to the emoji on the message."
     ROLE_NOT_BOUND = ":x: The role is not bound to that message."
     ROLE_UNBOUND = ":put_litter_in_its_place: Unbound the role on the message.\n"
@@ -45,7 +46,7 @@ Gave a total of {g} roles."""
     NO_CLIENT_MODIFICATION = "\nYou do not have the client_modification cog installed. " \
                              "You may expect roles to not work after restarting."
 
-    def __init__(self, bot):
+    def __init__(self, bot: discord.Client):
         self.bot = bot
         self.check_configs()
         self.load_data()
@@ -113,7 +114,7 @@ Gave a total of {g} roles."""
         """Add a role on a message
         `message_id` must be found in `channel`
         `emoji_id` can either be a Unicode emoji or a server emote
-        `emoji_id` (if it's a server emote) and `role` must be found in the channel's server"""
+        `role` must be found in the channel's server"""
         server = channel.server
         try:  # Why doesn't this return None if not found like every other get_something method in discord.Client PJSalt
             message = await self.bot.get_message(channel, message_id)
@@ -126,10 +127,13 @@ Gave a total of {g} roles."""
             elif server is None:
                 response = self.NOT_IN_SERVER
             else:
-                emoji = discord.utils.find(lambda e: e.id == emoji_id, server.emojis)
                 if role.server != channel.server:
                     response = self.ROLE_NOT_FOUND
                 else:
+                    emoji = None
+                    for emoji_server in self.bot.servers:
+                        if emoji is None:
+                            emoji = discord.utils.get(emoji_server.emojis, id=emoji_id)
                     try:
                         await self.bot.add_reaction(message, emoji or emoji_id)
                     except discord.HTTPException:  # Failed to find the emoji
