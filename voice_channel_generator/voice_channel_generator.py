@@ -323,7 +323,7 @@ and are considered **False** for: `no`, `n`, `0`, `false`
                 elif len(channels_without_people) < empty_voice_channels:  # Create new channel(s)
                     # Fetch one of the missing numbers from the resulting set
                     missing_number = next(iter(set(range(1, config["max_channels"] + 1)) - set(channel_ids)))
-                    ows = self.perms_overwrites[server.id]
+                    ows = self.perms_overwrites.get(server.id, [])
                     chann = await self.create_channel(server, channel_format.format(missing_number), *ows,
                                                       channel_type=discord.ChannelType.voice, parent_id=parent_id)
                     if len(channel_ids) > 0:
@@ -373,7 +373,7 @@ and are considered **False** for: `no`, `n`, `0`, `false`
         }
         if parent_id is not None:
             payload["parent_id"] = parent_id
-        if overwrites is not None:
+        if len(overwrites) > 0:
             perms = []
             for overwrite in overwrites:
                 target, perm = overwrite
