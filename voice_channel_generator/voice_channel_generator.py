@@ -236,7 +236,7 @@ and are considered **False** for: `no`, `n`, `0`, `false`
     async def _voice_gen_add(self, ctx, parent_id: str, *, generator: str):
         """Add a new voice channel generator
         parent_id must be the id of a channel category; if no channel is found, channels will be outside all categories
-        The generator must contain "{}" exactly once.
+        The generator must contain "{}" exactly once. Examples: `Voice Chat #{}`, `Channel {}/20`, `Casual {}`
         It will be replaced by a number starting at 1 and going up."""
         server = ctx.message.server
         self.check_server_configs(server)
