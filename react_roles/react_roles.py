@@ -5,6 +5,7 @@ import os.path
 import os
 import math
 import traceback
+import re
 
 from discord.ext import commands
 from .utils import checks
@@ -26,6 +27,7 @@ class ReactRoles:
 
     # Behavior related constants
     MAXIMUM_PROCESSED_PER_SECOND = 5
+    EMOTE_REGEX = re.compile("<:[a-zA-Z0-9_]{2,32}:(\d{1,20})>")
 
     # Message constants
     PROGRESS_FORMAT = "Checked {c} out of {r} reactions out of {t} emojis."
@@ -35,8 +37,9 @@ Gave a total of {g} roles."""
     ALREADY_BOUND = ":x: The emoji is already bound on that message."
     NOT_IN_SERVER = ":x: The channel must be in a server."
     ROLE_NOT_FOUND = ":x: Role not found on the given channel's server."
-    EMOJI_NOT_FOUND = ":x: Emoji not found on the given channel's server or in unicode emojis.\n" \
-                      "Or I may not have permissions to add reactions in the channel."
+    EMOJI_NOT_FOUND = ":x: Emoji not found in any of my servers or in unicode emojis."
+    CANT_ADD_REACTIONS = ":x: I don't have the permission to add reactions in that channel."
+    CANT_MANAGE_ROLES = ":x: I don't have the permission to manage users' roles in the channel's server."
     ROLE_SUCCESSFULLY_BOUND = ":white_check_mark: The role has been bound to the emoji on the message."
     ROLE_NOT_BOUND = ":x: The role is not bound to that message."
     ROLE_UNBOUND = ":put_litter_in_its_place: Unbound the role on the message.\n"
@@ -110,10 +113,10 @@ Gave a total of {g} roles."""
     
     @_roles.command(name="add", pass_context=True, no_pm=True)
     @checks.mod_or_permissions(manage_roles=True)
-    async def _roles_add(self, ctx, message_id, channel: discord.Channel, emoji_id, *, role: discord.Role):
+    async def _roles_add(self, ctx, message_id, channel: discord.Channel, emoji, *, role: discord.Role):
         """Add a role on a message
         `message_id` must be found in `channel`
-        `emoji_id` can either be a Unicode emoji or a server emote
+        `emoji` can either be a Unicode emoji or a server emote
         `role` must be found in the channel's server"""
         server = channel.server
         try:  # Why doesn't this return None if not found like every other get_something method in discord.Client PJSalt
@@ -122,6 +125,8 @@ Gave a total of {g} roles."""
             response = self.MESSAGE_NOT_FOUND
         else:
             msg_conf = self.get_message_config(server.id, channel.id, message.id)
+            emoji_match = self.EMOTE_REGEX.fullmatch(emoji)
+            emoji_id = emoji if emoji_match is None else emoji_match.group(1)
             if emoji_id in msg_conf:
                 response = self.ALREADY_BOUND
             elif server is None:
@@ -129,6 +134,10 @@ Gave a total of {g} roles."""
             else:
                 if role.server != channel.server:
                     response = self.ROLE_NOT_FOUND
+                elif channel.server.me.server_permissions.manage_roles is False:
+                    response = self.CANT_MANAGE_ROLES
+                elif channel.permissions_for(channel.server.me).add_reactions is False:
+                    response = self.CANT_ADD_REACTIONS
                 else:
                     emoji = None
                     for emoji_server in self.bot.servers:
