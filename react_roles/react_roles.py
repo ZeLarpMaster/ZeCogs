@@ -6,6 +6,7 @@ import os
 import math
 import traceback
 import re
+import logging
 
 from discord.ext import commands
 from .utils import checks
@@ -40,7 +41,7 @@ Gave a total of {g} roles."""
     EMOJI_NOT_FOUND = ":x: Emoji not found in any of my servers or in unicode emojis."
     CANT_ADD_REACTIONS = ":x: I don't have the permission to add reactions in that channel."
     CANT_MANAGE_ROLES = ":x: I don't have the permission to manage users' roles in the channel's server."
-    ROLE_SUCCESSFULLY_BOUND = ":white_check_mark: The role has been bound to the emoji on the message."
+    ROLE_SUCCESSFULLY_BOUND = ":white_check_mark: The role has been bound to {} on the message in {}."
     ROLE_NOT_BOUND = ":x: The role is not bound to that message."
     ROLE_UNBOUND = ":put_litter_in_its_place: Unbound the role on the message.\n"
     REACTION_CLEAN_START = ROLE_UNBOUND + "Removing linked reactions..."
@@ -51,6 +52,7 @@ Gave a total of {g} roles."""
 
     def __init__(self, bot: discord.Client):
         self.bot = bot
+        self.logger = logging.getLogger("red.ZeCogs.react_roles")
         self.check_configs()
         self.load_data()
         self.role_queue = asyncio.Queue()
@@ -89,16 +91,22 @@ Gave a total of {g} roles."""
         await self.bot.wait_until_ready()
         for server_id, server_conf in self.config.items():
             server = self.bot.get_server(server_id)
-            for channel_id, channel_conf in server_conf.items():
-                channel = server.get_channel(channel_id)
-                for msg_id, msg_conf in channel_conf.items():
-                    msg = await self.bot.get_message(channel, msg_id)
-                    self.add_cache_message(msg)  # This is where the magic happens.
-                    for emoji_str, role_id in msg_conf.items():
-                        role = discord.utils.get(server.roles, id=role_id)
-                        if role is not None:
-                            self.add_to_cache(server_id, channel_id, msg_id, emoji_str, role)
-    
+            if server is not None:
+                for channel_id, channel_conf in server_conf.items():
+                    channel = server.get_channel(channel_id)
+                    if channel is not None:
+                        for msg_id, msg_conf in channel_conf.items():
+                            msg = await self.bot.get_message(channel, msg_id)
+                            self.add_cache_message(msg)  # This is where the magic happens.
+                            for emoji_str, role_id in msg_conf.items():
+                                role = discord.utils.get(server.roles, id=role_id)
+                                if role is not None:
+                                    self.add_to_cache(server_id, channel_id, msg_id, emoji_str, role)
+                    else:
+                        self.logger.warning("Could not find channel with id {} in server {}", channel_id, server.name)
+            else:
+                self.logger.warning("Could not find server with id {}", server_id)
+
     def __unload(self):
         # This method is ran whenever the bot unloads this cog.
         pass
@@ -151,7 +159,7 @@ Gave a total of {g} roles."""
                         self.add_to_cache(server.id, channel.id, message_id, emoji_id, role)
                         msg_conf[emoji_id] = role.id
                         self.save_data()
-                        response = self.ROLE_SUCCESSFULLY_BOUND
+                        response = self.ROLE_SUCCESSFULLY_BOUND.format(str(emoji or emoji_id), channel.mention)
                         if self.bot.get_cog("ClientModification") is None:
                             response += self.NO_CLIENT_MODIFICATION
         await self.bot.send_message(ctx.message.channel, response)
