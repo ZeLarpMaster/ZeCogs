@@ -24,7 +24,18 @@ class ReactRoles:
 
     # Configuration defaults
     SERVER_DEFAULT = {}
-    CONFIG_DEFAULT = {}  # {server.id: {channel.id: {message.id: {emoji.id or str: role.id}}}}
+    CONFIG_DEFAULT = {}
+    """
+    {
+        server.id: {
+            channel.id: {
+                message.id: {
+                    emoji.id or str: role.id
+                }
+            }
+            links: [[channel.id + "_" + message.id]]
+        }
+    }"""
 
     # Behavior related constants
     MAXIMUM_PROCESSED_PER_SECOND = 5
