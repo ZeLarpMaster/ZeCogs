@@ -24,11 +24,10 @@ class MessageProxy:
     # Configuration defaults
     CONFIG_DEFAULT = {}
 
-    # Behavior related constants
-    EXTENSIONS = (".png", ".jpeg", ".jpg")
-
     # Message constants
     MESSAGE_SENT = ":white_check_mark: The message has been sent in {}."
+    MESSAGE_EDITED = ":white_check_mark: The message has been edited."
+    FAILED_TO_FIND_MESSAGE = ":x: Failed to find the message with id {} in {}."
 
     def __init__(self, bot: discord.Client):
         self.bot = bot
@@ -59,9 +58,9 @@ class MessageProxy:
         attachment = self.get_attachment(message)
         if attachment is not None:
             async with aiohttp.ClientSession() as session:
-                async with session.get(url=attachment, headers={"User-Agent": "Mozilla"}) as response:
+                async with session.get(url=attachment[0], headers={"User-Agent": "Mozilla"}) as response:
                     file = io.BytesIO(await response.read())
-            await self.bot.send_file(channel, file, content=content)
+            await self.bot.send_file(channel, file, content=content, filename=attachment[1])
         else:
             await self.bot.send_message(channel, content)
         await self.bot.send_message(message.channel, self.MESSAGE_SENT.format(channel.mention))
@@ -75,18 +74,16 @@ class MessageProxy:
         try:
             msg = await self.bot.get_message(channel, message_id)
         except discord.errors.HTTPException:
-            response = self.FAILED_TO_FIND_MESSAGE.format(channel.mention)
+            response = self.FAILED_TO_FIND_MESSAGE.format(message_id, channel.mention)
         else:
             await self.bot.edit_message(msg, new_content=new_content)
             response = self.MESSAGE_EDITED
-        await self.bot.send_message(message.channel, response)
+        await self.bot.send_message(ctx.message.channel, response)
 
     # Utilities
     def get_attachment(self, message):
-        image_attachments = list(filter(lambda a:
-                                        os.path.splitext(a.get("filename", ""))[-1].lower() in self.EXTENSIONS,
-                                        message.attachments))
-        return image_attachments[0]["url"] if len(image_attachments) > 0 else None
+        image_attachments = list(message.attachments)
+        return (image_attachments[0]["url"], image_attachments[0]["filename"]) if len(image_attachments) > 0 else None
 
     # Config
     def get_config(self, server_id):
