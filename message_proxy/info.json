@@ -1,0 +1,10 @@
+{
+    "AUTHOR" : "ZeLarpMaster#0924",
+    "INSTALL_MSG" : "Thanks for installing my MessageProxy cog.",
+    "NAME" : "MessageProxy",
+    "SHORT" : "Send and edit messages through the bot to allow multiple people to manage the same message.",
+    "DESCRIPTION" : "Send and edit messages through the bot thus allowing different people access to the same message.",
+    "TAGS" : ["message_proxy"],
+    "REQUIREMENTS" : [],
+    "HIDDEN" : false
+}
