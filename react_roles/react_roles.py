@@ -130,12 +130,15 @@ Gave a total of {g} roles."""
                     channel = server.get_channel(channel_id)
                     if channel is not None:
                         for msg_id, msg_conf in channel_conf.items():
-                            msg = await self.bot.get_message(channel, msg_id)
-                            self.add_cache_message(msg)  # This is where the magic happens.
-                            for emoji_str, role_id in msg_conf.items():
-                                role = discord.utils.get(server.roles, id=role_id)
-                                if role is not None:
-                                    self.add_to_cache(server_id, channel_id, msg_id, emoji_str, role)
+                            msg = await self.safe_get_message(channel, msg_id)
+                            if msg is not None:
+                                self.add_cache_message(msg)  # This is where the magic happens.
+                                for emoji_str, role_id in msg_conf.items():
+                                    role = discord.utils.get(server.roles, id=role_id)
+                                    if role is not None:
+                                        self.add_to_cache(server_id, channel_id, msg_id, emoji_str, role)
+                            else:
+                                self.logger.warning("Could not find message {} in {}", msg_id, channel.mention)
                     else:
                         self.logger.warning("Could not find channel with id {} in server {}",
                                             channel_id, server.name)
@@ -255,9 +258,8 @@ Gave a total of {g} roles."""
         `emoji` can either be a Unicode emoji or a server emote
         `role` must be found in the channel's server"""
         server = channel.server
-        try:  # Why doesn't this return None if not found like every other get_something method in discord.Client PJSalt
-            message = await self.bot.get_message(channel, message_id)
-        except discord.NotFound:
+        message = await self.safe_get_message(channel, message_id)
+        if message is None:
             response = self.MESSAGE_NOT_FOUND
         else:
             msg_conf = self.get_message_config(server.id, channel.id, message.id)
@@ -308,20 +310,23 @@ Gave a total of {g} roles."""
             self.remove_role_from_cache(server.id, channel.id, message_id, emoji_str)
             del msg_config[emoji_str]
             self.save_data()
-            answer = await self.bot.send_message(c, self.REACTION_CLEAN_START)
-            msg = await self.bot.get_message(channel, message_id)
-            reaction = discord.utils.find(
-                lambda r: r.emoji.id == emoji_str if r.custom_emoji else r.emoji == emoji_str, msg.reactions)
-            after = None
-            count = 0
-            user = None
-            for page in range(math.ceil(reaction.count / 100)):
-                for user in await self.bot.get_reaction_users(reaction, after=after):
-                    await self.bot.remove_reaction(msg, reaction.emoji, user)
-                    count += 1
-                after = user
-                await self.bot.edit_message(answer, self.PROGRESS_REMOVED.format(count, reaction.count))
-            await self.bot.edit_message(answer, self.REACTION_CLEAN_DONE.format(count))
+            msg = await self.safe_get_message(channel, message_id)
+            if msg is None:
+                await self.bot.send_message(c, self.MESSAGE_NOT_FOUND)
+            else:
+                answer = await self.bot.send_message(c, self.REACTION_CLEAN_START)
+                reaction = discord.utils.find(
+                    lambda r: r.emoji.id == emoji_str if r.custom_emoji else r.emoji == emoji_str, msg.reactions)
+                after = None
+                count = 0
+                user = None
+                for page in range(math.ceil(reaction.count / 100)):
+                    for user in await self.bot.get_reaction_users(reaction, after=after):
+                        await self.bot.remove_reaction(msg, reaction.emoji, user)
+                        count += 1
+                    after = user
+                    await self.bot.edit_message(answer, self.PROGRESS_REMOVED.format(count, reaction.count))
+                await self.bot.edit_message(answer, self.REACTION_CLEAN_DONE.format(count))
     
     @_roles.command(name="check", pass_context=True, no_pm=True)
     @checks.mod_or_permissions(manage_roles=True)
@@ -329,9 +334,13 @@ Gave a total of {g} roles."""
         """Goes through all reactions of a message and gives the roles accordingly
         This does NOT work with messages in a link"""
         server = channel.server
-        msg = await self.bot.get_message(channel, message_id)
+        msg = await self.safe_get_message(channel, message_id)
         server_links = self.links.get(server.id, {})
-        if channel.id + "_" + message_id not in server_links:
+        if channel.id + "_" + message_id in server_links:
+            await self.bot.send_message(ctx.message.channel, self.CANT_CHECK_LINKED)
+        elif msg is None:
+            await self.bot.send_message(ctx.message.channel, self.MESSAGE_NOT_FOUND)
+        else:
             msg_conf = self.get_message_config(server.id, channel.id, msg.id)
             if msg_conf is not None:  # Something is very wrong if this is False but whatever
                 progress_msg = await self.bot.send_message(ctx.message.channel, "Initializing...")
@@ -365,8 +374,6 @@ Gave a total of {g} roles."""
                                                         c=checked_count, r=total_count, t=total_reactions))
                 await self.bot.edit_message(progress_msg, self.PROGRESS_COMPLETE_FORMAT.format(c=checked_count,
                                                                                                g=given_roles))
-        else:
-            await self.bot.send_message(ctx.message.channel, self.CANT_CHECK_LINKED)
     
     # Utilities
     async def check_add_role(self, reaction, member):
