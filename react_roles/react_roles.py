@@ -138,15 +138,15 @@ Gave a total of {g} roles."""
                                     if role is not None:
                                         self.add_to_cache(server_id, channel_id, msg_id, emoji_str, role)
                             else:
-                                self.logger.warning("Could not find message {} in {}", msg_id, channel.mention)
+                                self.logger.warning("Could not find message {} in {}".format(msg_id, channel.mention))
                     else:
-                        self.logger.warning("Could not find channel with id {} in server {}",
-                                            channel_id, server.name)
+                        self.logger.warning("Could not find channel with id {} in server {}".format(channel_id,
+                                                                                                    server.name))
                 link_list = server_conf.get(self.LINKS_ENTRY)
                 if link_list is not None:
                     self.parse_links(server_id, link_list.values())
             else:
-                self.logger.warning("Could not find server with id {}", server_id)
+                self.logger.warning("Could not find server with id {}".format(server_id))
 
     def __unload(self):
         # This method is ran whenever the bot unloads this cog.
