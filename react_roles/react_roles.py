@@ -114,7 +114,7 @@ Gave a total of {g} roles."""
             self.remove_message_from_cache(server.id, channel.id, message.id)
             # And the links
             pair = channel.id + "_" + message.id
-            if pair in self.links[server.id]:
+            if pair in self.links.get(server.id, {}):
                 del self.links[server.id][pair]
             server_links = server_conf.get(self.LINKS_ENTRY)
             for links in server_links.values():
