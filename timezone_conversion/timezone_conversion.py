@@ -47,8 +47,9 @@ If timezone2 is omitted, it will only respond to *now* requests."""
 
     @commands.group(name="time", pass_context=True, invoke_without_command=True)
     async def _time_converter(self, ctx, time, timezone1, timezone2=None):
-        """Converts the time from timezone1 to timezone2.
-List of supported timezones: <https://en.wikipedia.org/wiki/List_of_tz_database_time_zones>."""
+        """Convert the time from timezone1 to timezone2
+
+        List of supported timezones: <https://en.wikipedia.org/wiki/List_of_tz_database_time_zones>."""
         if time is None and timezone1 is None:
             await self.bot.send_cmd_help(ctx)
         else:
@@ -70,18 +71,18 @@ List of supported timezones: <https://en.wikipedia.org/wiki/List_of_tz_database_
 
     @_time_converter.command(name="list", pass_context=True)
     async def _list_zones(self, ctx):
-        """Prints the link to the list of possible timezones."""
+        """Print the link to the list of possible timezones"""
         await self.bot.send_message(ctx.message.channel, self.LIST_OF_TZ)
 
     @_time_converter.group(name="alias", pass_context=True, invoke_without_command=True)
     async def alias(self, ctx):
-        """Manages the timezone aliases."""
+        """Manage the timezone aliases"""
         await self.bot.send_cmd_help(ctx)
     
     @alias.command(name="add", pass_context=True)
     @checks.mod_or_permissions(manage_roles=True)
     async def _add_alias(self, ctx, alias_name, timezone):
-        """Adds a new timezone alias."""
+        """Add a new timezone alias"""
         if " " not in alias_name and " " not in timezone:
             alias_name = alias_name.lower()
             timezone = timezone.lower()
@@ -107,7 +108,7 @@ List of supported timezones: <https://en.wikipedia.org/wiki/List_of_tz_database_
     @alias.command(name="remove", pass_context=True, aliases=["del", "delete"])
     @checks.mod_or_permissions(manage_roles=True)
     async def _remove_alias(self, ctx, alias_name):
-        """Deletes a timezone alias."""
+        """Delete a timezone alias"""
         alias_name = alias_name.lower()
         if alias_name in self.aliases:
             del self.aliases[alias_name]
@@ -119,7 +120,7 @@ List of supported timezones: <https://en.wikipedia.org/wiki/List_of_tz_database_
     
     @alias.command(name="list", pass_context=True, aliases=["ls"])
     async def _list_alias(self, ctx):
-        """Lists all timezone aliases."""
+        """List all timezone aliases"""
         embed = discord.Embed(title="Alias List", colour=discord.Colour.light_grey(), description="```")
         if len(self.aliases) > 0:
             alias_list = list(self.aliases.items())
