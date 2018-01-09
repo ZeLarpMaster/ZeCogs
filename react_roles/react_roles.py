@@ -116,7 +116,7 @@ Gave a total of {g} roles."""
             pair = channel.id + "_" + message.id
             if pair in self.links.get(server.id, {}):
                 del self.links[server.id][pair]
-            server_links = server_conf.get(self.LINKS_ENTRY)
+            server_links = server_conf.get(self.LINKS_ENTRY, [])
             for links in server_links.values():
                 if pair in links:
                     links.remove(pair)
