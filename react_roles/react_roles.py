@@ -116,10 +116,11 @@ Gave a total of {g} roles."""
             pair = channel.id + "_" + message.id
             if pair in self.links.get(server.id, {}):
                 del self.links[server.id][pair]
-            server_links = server_conf.get(self.LINKS_ENTRY, [])
-            for links in server_links.values():
-                if pair in links:
-                    links.remove(pair)
+            server_links = server_conf.get(self.LINKS_ENTRY)
+            if server_links is not None:
+                for links in server_links.values():
+                    if pair in links:
+                        links.remove(pair)
     
     async def _init_bot_manipulation(self):
         await self.bot.wait_until_ready()
