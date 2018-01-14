@@ -1,0 +1,10 @@
+{
+    "AUTHOR" : "ZeLarpMaster#0924",
+    "INSTALL_MSG" : "Thanks for installing my voice lock cog and enjoy!",
+    "NAME" : "VoiceLock",
+    "SHORT" : "Allow users to lock the voice channel they're in",
+    "DESCRIPTION" : "Allows users to prevent other users from entering their voice channel and to permit some users in their voice channel.",
+    "TAGS" : ["voice", "channel", "lock"],
+    "REQUIREMENTS" : [],
+    "HIDDEN" : false
+}
