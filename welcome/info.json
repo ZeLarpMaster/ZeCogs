@@ -1,0 +1,10 @@
+{
+    "AUTHOR" : "ZeLarpMaster#0924",
+    "INSTALL_MSG" : "Thanks for installing my welcome cog and enjoy!",
+    "NAME" : "Welcome",
+    "SHORT" : "Sends a welcome message to new users.",
+    "DESCRIPTION" : "Sends a message with (or without) an image to new members in private messages.",
+    "TAGS" : ["welcome", "pm", "dm"],
+    "REQUIREMENTS" : [],
+    "HIDDEN" : false
+}
