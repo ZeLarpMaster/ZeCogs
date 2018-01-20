@@ -26,7 +26,7 @@ class Reminder:
                                                ("hours", 3600), ("days", 86400),
                                                ("weeks", 604800), ("months", 2.628e+6),
                                                ("years", 3.154e+7)])  # (amount in seconds, max amount)
-    MAX_SECONDS = TIME_QUANTITIES["years"][0] * 2
+    MAX_SECONDS = TIME_QUANTITIES["years"] * 2
 
     # Message constants
     INVALID_TIME_FORMAT = ":x: Invalid time format."
