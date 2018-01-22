@@ -42,7 +42,7 @@ class ReactRoles:
 
     # Behavior related constants
     MAXIMUM_PROCESSED_PER_SECOND = 5
-    EMOTE_REGEX = re.compile("<:[a-zA-Z0-9_]{2,32}:(\d{1,20})>")
+    EMOTE_REGEX = re.compile("<a?:[a-zA-Z0-9_]{2,32}:(\d{1,20})>")
     LINKS_ENTRY = "links"
 
     # Message constants
