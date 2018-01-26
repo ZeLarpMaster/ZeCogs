@@ -11,7 +11,7 @@ If it's not there already, [open an issue](../../issues).
 
 # Contact
 You can find me on the [/r/RocketLeague Discord server](https://discord.gg/rocketleague).
-I'm ZeLarpMaster#0924 (or you can look for ZeTwiceMaster towards the top of the sidebar)
+I'm ZeLarpMaster#0819 (or you can look for ZeTwiceMaster towards the top of the sidebar)
 
 # Frequently Asked Questions
 ### Roles aren't assigned after restarting the bot or reloading the cog
