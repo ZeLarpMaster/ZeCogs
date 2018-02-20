@@ -1,9 +1,9 @@
 {
     "AUTHOR" : "ZeLarpMaster#0819",
-    "INSTALL_MSG" : "Thanks for installing my ClientModification cog.\nThis also allows you to make the help messages autodelete after a configurable amount of time.",
+    "INSTALL_MSG" : "Thanks for installing my ClientModification cog.",
     "NAME" : "ClientModification",
-    "SHORT" : "Make help messages autodelete after a while and enable obscure features for my other cogs.",
-    "DESCRIPTION" : "Allows you to configure an amount of time after which help messages will self-destruct.\nAlso, mainly used to enable obscure features on my other cogs.",
+    "SHORT" : "Enables obscure features needed by my other cogs.",
+    "DESCRIPTION" : "Mainly used to enable obscure features on my other cogs.",
     "TAGS" : [],
     "REQUIREMENTS" : [],
     "HIDDEN" : false

@@ -1,0 +1,10 @@
+{
+    "AUTHOR" : "ZeLarpMaster#0819",
+    "INSTALL_MSG" : "Thanks for installing my HelpAutoDelete cog.\nThis also allows you to make the help messages autodelete after a configurable amount of time.",
+    "NAME" : "HelpAutoDelete",
+    "SHORT" : "Make help messages autodelete after a while.",
+    "DESCRIPTION" : "Allows you to configure an amount of time after which help messages will self-destruct.",
+    "TAGS" : [],
+    "REQUIREMENTS" : [],
+    "HIDDEN" : false
+}
