@@ -4,6 +4,7 @@ import os.path
 import os
 import datetime
 import itertools
+import contextlib
 
 from discord.ext import commands
 from .utils import checks
@@ -41,13 +42,14 @@ class Birthdays:
     # Events
     async def initialise(self):
         await self.bot.wait_until_ready()
-        while self == self.bot.get_cog(self.__class__.__name__):  # Stops the loop when the cog is reloaded
-            now = datetime.datetime.utcnow()
-            tomorrow = (now + datetime.timedelta(days=1)).replace(hour=0, minute=0, second=0, microsecond=0)
-            await asyncio.sleep((tomorrow - now).total_seconds())
-            self.clean_yesterday_bdays()
-            self.do_today_bdays()
-            self.save_data()
+        with contextlib.suppress(RuntimeError):
+            while self == self.bot.get_cog(self.__class__.__name__):  # Stops the loop when the cog is reloaded
+                now = datetime.datetime.utcnow()
+                tomorrow = (now + datetime.timedelta(days=1)).replace(hour=0, minute=0, second=0, microsecond=0)
+                await asyncio.sleep((tomorrow - now).total_seconds())
+                self.clean_yesterday_bdays()
+                self.do_today_bdays()
+                self.save_data()
 
     def __unload(self):
         self.bday_loop.cancel()  # Forcefully cancel the loop when unloaded

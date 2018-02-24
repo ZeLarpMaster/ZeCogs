@@ -8,6 +8,7 @@ import traceback
 import re
 import logging
 import itertools
+import contextlib
 
 from discord.ext import commands
 from .utils import checks
@@ -420,24 +421,25 @@ Gave a total of {g} roles."""
     async def process_role_queue(self):  # This exists to update multiple roles at once when possible
         """Loops until the cog is unloaded and processes the role assignments when it can"""
         await self.bot.wait_until_ready()
-        while self == self.bot.get_cog(self.__class__.__name__):
-            key = await self.role_queue.get()
-            q = self.role_map.pop(key)
-            if q is not None and q.get("mem") is not None:
-                mem = q["mem"]
-                all_roles = set(mem.roles)
-                add_set = q.get(True, set())
-                del_set = q.get(False, {mem.server.default_role})
-                try:
-                    await self.bot.replace_roles(mem, *((all_roles | add_set) - del_set))
-                    # Basically, the user's roles + the added - the removed
-                except (discord.Forbidden, discord.HTTPException):
-                    self.role_map[key] = q  # Try again when it fails
-                    await self.role_queue.put(key)
-                else:
-                    self.role_queue.task_done()
-                finally:
-                    await asyncio.sleep(self.processing_wait_time)
+        with contextlib.suppress(RuntimeError):  # Suppress the "Event loop is closed" error
+            while self == self.bot.get_cog(self.__class__.__name__):
+                key = await self.role_queue.get()
+                q = self.role_map.pop(key)
+                if q is not None and q.get("mem") is not None:
+                    mem = q["mem"]
+                    all_roles = set(mem.roles)
+                    add_set = q.get(True, set())
+                    del_set = q.get(False, {mem.server.default_role})
+                    try:
+                        await self.bot.replace_roles(mem, *((all_roles | add_set) - del_set))
+                        # Basically, the user's roles + the added - the removed
+                    except (discord.Forbidden, discord.HTTPException):
+                        self.role_map[key] = q  # Try again when it fails
+                        await self.role_queue.put(key)
+                    else:
+                        self.role_queue.task_done()
+                    finally:
+                        await asyncio.sleep(self.processing_wait_time)
         self.logger.debug("The processing loop has ended.")
 
     async def safe_get_message(self, channel, message_id):
