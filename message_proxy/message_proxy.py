@@ -60,10 +60,11 @@ class MessageProxy:
             async with aiohttp.ClientSession() as session:
                 async with session.get(url=attachment[0], headers={"User-Agent": "Mozilla"}) as response:
                     file = io.BytesIO(await response.read())
-            msg = await self.bot.send_file(channel, file, content="Placeholder", filename=attachment[1])
+            msg = await self.bot.send_file(channel, file, content=content and "Placeholder", filename=attachment[1])
         else:
             msg = await self.bot.send_message(channel, "Placeholder")
-        await self.bot.edit_message(msg, new_content=content)
+        if content is not None:
+            await self.bot.edit_message(msg, new_content=content)
         await self.bot.send_message(message.channel, self.MESSAGE_SENT.format(channel.mention))
 
     @_messages.command(name="edit", pass_context=True)
