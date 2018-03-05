@@ -246,7 +246,7 @@ and are considered **False** for: `no`, `n`, `0`, `false`
             await self.bot.say(self.CHANNEL_FORMAT_EXISTS_MSG)
         else:
             channel = self.bot.get_channel(parent_id)
-            if channel is None or channel.type != 4:
+            if channel is None or self.is_channel_not_category(channel):
                 parent_id = None
             self.config[server.id]["voice_chat_formats"][generator] = parent_id
             self.save_data()
@@ -395,6 +395,13 @@ and are considered **False** for: `no`, `n`, `0`, `false`
     def check_server_configs(self, server):
         if server.id not in self.config:
             self.config[server.id] = copy.deepcopy(self.SERVER_DEFAULT)
+
+    def is_channel_not_category(self, channel):
+        if hasattr(discord.ChannelType, "category"):
+            result = channel.type != discord.ChannelType["category"]
+        else:
+            result = channel.type != 4
+        return result
     
     def parse_float(self, float_str):
         try:
