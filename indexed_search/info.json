@@ -1,0 +1,10 @@
+{
+    "AUTHOR" : "ZeLarpMaster#0819",
+    "INSTALL_MSG" : "Thanks for installing my IndexedSearch cog.",
+    "NAME" : "IndexedSearch",
+    "SHORT" : "Specify channels to be indexed and potentially searched",
+    "DESCRIPTION" : "Add channels to an index and allow users to search through the an index's latest messages. Supports 'abbreviations' aka synonyms.",
+    "TAGS" : ["indexed", "textsearch"],
+    "REQUIREMENTS" : [],
+    "HIDDEN" : false
+}
