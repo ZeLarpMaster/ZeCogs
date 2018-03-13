@@ -5,6 +5,8 @@ import os
 import re
 import copy
 import discord.http
+import contextlib
+import logging
 
 from discord.ext import commands
 from .utils import checks
@@ -13,14 +15,15 @@ from .utils.dataIO import dataIO
 
 class VoiceChannelGenerator:
     """Utilities to manage voice channel generators.
+
 Generators create/delete voice channel to fit a configurable number of channels."""
     
     DATA_FOLDER = "data/voice_channel_gen"
     DATA_FILE_PATH = DATA_FOLDER + "/config.json"
     
     CONFIG_DEFAULT = {}
-    SERVER_DEFAULT = {"voice_chat_formats": {}, "empty_voice_channels": 2, "afk_at_bottom": False,
-                      "max_channels": 25, "default_permissions": [], "delay": 0.2}
+    SERVER_DEFAULT = {"voice_chat_formats": {}, "afk_at_bottom": False, "delay": 0.2}
+    CHAT_FORMAT_DEFAULT = {"empty_voice_channels": 2, "max_channels": 25, "default_permissions": [], "parent": None}
     
     NUMBER_REGEX = "(?P<number>\d+)"  # Just a fancy way of matching 1+ digits
     
@@ -40,8 +43,12 @@ Generators create/delete voice channel to fit a configurable number of channels.
     CHANNEL_EDITING_MSG = ":pencil: Modifying the existing channels' permissions."
     CHANNEL_EDITED_MSG = ":white_check_mark: Modified the existing channels."
     CONFIG_TITLE_FORMAT = "Configuration for {server.name}"
-    CONFIG_DESC_FORMAT = "There is **{nb_chats}** on the server.\n" \
-                         "New channels have default permissions for {def_perms}."
+    CONFIG_DESC_FORMAT = """There is **{nb_chats}** on the server.
+The AFK channel **{afk_bot}** be stuck to the bottom.
+The delay for this server is **{delay}**."""
+    CONFIG_GENERATOR_FORMAT = """Empty channels: {}
+Max channels: {}
+Permissions: {}"""
     CHANNEL_FORMAT_DELETED_MSG = ":put_litter_in_its_place: Removed the channel generator."
     CONFIG_SET_MSG = """Configurations:
     **empty_channels** --> **Integer**, how many empty channels per generator (can't exceed 25)
@@ -57,9 +64,15 @@ and are considered **False** for: `no`, `n`, `0`, `false`
     CONFIG_NOT_FOUND_MSG = ":x: Error: Configuration not found."
     INVALID_CONFIG_VALUE_MSG = ":x: Error: Invalid configuration value."
     CONFIGURATION_CHANGED_MSG = ":white_check_mark: The configuration has been set."
-    
+    CONFIG_GENERATOR_MISSING_MSG = ":x: You must provide a generator for that configuration."
+    CONFIG_GENERATOR_NOT_NEEDED_MSG = ":x: You can't provide a generator for that configuration."
+    GENERATOR_NOT_FOUND_MSG = ":x: That generator was not found in the current server."
+
+    # TODO: Clean it all (or rewrite, might be faster)
+
     def __init__(self, bot: discord.Client):
         self.bot = bot
+        self.logger = logging.getLogger("red.ZeCogs.voice_channel_generator")
         self.check_configs()
         self.load_data()
         self.temp_events = {}
@@ -67,20 +80,21 @@ and are considered **False** for: `no`, `n`, `0`, `false`
     
     # Events
     async def on_voice_state_update(self, before: discord.Member, after: discord.Member):
-        before_channel = before.voice.voice_channel
-        after_channel = after.voice.voice_channel
-        if before_channel != after_channel:
-            server = after.server if after.server is not None else before.server
-            if server is not None and server.id in self.config:
-                server_conf = self.config[server.id]
-                after_name = "" if after_channel is None else after_channel.name
-                before_name = "" if before_channel is None else before_channel.name
-                for voice_format, parent_id in server_conf["voice_chat_formats"].items():
-                    reg = re.compile(voice_format.format(self.NUMBER_REGEX))
-                    if reg.fullmatch(after_name) or reg.fullmatch(before_name):
-                        await self.check_channels(server, voice_format, parent_id, server_conf)
-                await asyncio.sleep(self.config[server.id]["delay"])
-                await self.check_afk_channel(server)
+        with contextlib.suppress():
+            before_channel = before.voice.voice_channel
+            after_channel = after.voice.voice_channel
+            if before_channel != after_channel:
+                server = after.server if after.server is not None else before.server
+                if server is not None and server.id in self.config:
+                    server_conf = self.config[server.id]
+                    after_name = "" if after_channel is None else after_channel.name
+                    before_name = "" if before_channel is None else before_channel.name
+                    for voice_format, format_config in server_conf["voice_chat_formats"].items():
+                        reg = re.compile(voice_format.format(self.NUMBER_REGEX))
+                        if reg.fullmatch(after_name) or reg.fullmatch(before_name):
+                            await self.check_channels(server, voice_format, format_config, server_conf)
+                    await asyncio.sleep(self.config[server.id]["delay"])
+                    await self.check_afk_channel(server)
     
     async def _init_perms(self):
         """Initializes the permissions from the raw configuration when the bot is ready"""
@@ -89,20 +103,17 @@ and are considered **False** for: `no`, `n`, `0`, `false`
         for s_id, configs in self.config.items():
             server = self.bot.get_server(s_id)
             if server is not None:
-                raw_perms = configs["default_permissions"]
-                pairs_list = []
-                for pairs in raw_perms:
-                    r_id, perms = pairs
-                    role = discord.utils.get(server.roles, id=r_id)
-                    allow_perms = discord.Permissions(permissions=perms[0])
-                    deny_perms = discord.Permissions(permissions=perms[1])
-                    perms_overwrite = discord.PermissionOverwrite.from_pair(allow_perms, deny_perms)
-                    pairs_list.append((role, perms_overwrite))
-                self.perms_overwrites[s_id] = pairs_list
-    
-    def __unload(self):
-        # This method is ran whenever the bot unloads this cog.
-        pass
+                server_perms = self.perms_overwrites.setdefault(s_id, {})
+                for channel_format, channel_config in configs["voice_chat_formats"].items():
+                    format_perms = server_perms.setdefault(channel_format, [])
+                    raw_perms = channel_config["default_permissions"]
+                    for pairs in raw_perms:
+                        r_id, perms = pairs
+                        role = discord.utils.get(server.roles, id=r_id)
+                        allow_perms = discord.Permissions(permissions=perms[0])
+                        deny_perms = discord.Permissions(permissions=perms[1])
+                        perms_overwrite = discord.PermissionOverwrite.from_pair(allow_perms, deny_perms)
+                        format_perms.append((role, perms_overwrite))
     
     # Commands
     @commands.group(name="voice_gen", pass_context=True, invoke_without_command=True)
@@ -116,38 +127,50 @@ and are considered **False** for: `no`, `n`, `0`, `false`
     async def _voice_gen_reset(self):
         """Resets the listener for the channel generation"""
         # Basically call [p]reload on self
-        await self.bot.get_command("reload").callback(self.bot.get_cog("Owner"), "cogs.voice_channel_generator")
+        await self.bot.get_command("reload").callback(self.bot.get_cog("Owner"),
+                                                      cog_name="cogs.voice_channel_generator")
     
     @_voice_gen.command(name="set", pass_context=True, no_pm=True)
     @checks.mod_or_permissions(manage_channels=True)
-    async def _voice_gen_set_configs(self, ctx, config_name=None, *, config_value=None):
+    async def _voice_gen_set_configs(self, ctx, config_name=None, config_value=None, *, generator=None):
         """Sets a configuration value
         If config_name is omitted, shows specifications.
-        If config_name is given, config_value must also be given."""
+        If config_name is given, config_value must also be given.
+        Some configurations are specific to a generator. Those will require the generator to be given."""
         server = ctx.message.server
-        self.check_server_configs(server)
+        server_config = self.get_server_config(server)
+        voice_formats = server_config["voice_chat_formats"]
         if config_name is None:
             await self.bot.say(self.CONFIG_SET_MSG)
         elif config_value is None:
             await self.bot.say(self.CONFIG_VALUE_MISSING_MSG)
+        elif generator is None and config_name.lower() not in ("afk_bottom", "delay"):
+            await self.bot.say(self.CONFIG_GENERATOR_MISSING_MSG)
+        elif generator is not None and config_name.lower() in ("afk_bottom", "delay"):
+            await self.bot.say(self.CONFIG_GENERATOR_NOT_NEEDED_MSG)
+        elif generator is not None and generator not in voice_formats:
+            await self.bot.say(self.GENERATOR_NOT_FOUND_MSG)
         else:
             config_name = config_name.lower()
             config_value = config_value.lower()
             key = None
             value = None
+            gen_conf = None
             # Parse the configs
-            if config_name == "empty_channels":
+            if config_name == "empty_channels":  # TODO: Oh my god spare me from this ugliness
                 key = "empty_voice_channels"
                 if config_value.isdigit():
                     temp_value = int(config_value)
                     if 0 < temp_value <= 25:
                         value = temp_value
+                        gen_conf = voice_formats.get(generator)  # TODO: :facepalm:
             elif config_name == "max_channels":
                 key = "max_channels"
                 if config_value.isdigit():
                     temp_value = int(config_value)
                     if 0 < temp_value <= 25:
                         value = temp_value
+                        gen_conf = voice_formats.get(generator)
             elif config_name == "afk_bottom":
                 key = "afk_at_bottom"
                 if config_value in ["yes", "y", "1", "true"]:
@@ -167,7 +190,7 @@ and are considered **False** for: `no`, `n`, `0`, `false`
                 if value is None:
                     await self.bot.say(self.INVALID_CONFIG_VALUE_MSG)
                 else:
-                    self.config[server.id][key] = value
+                    (gen_conf or server_config)[key] = value
                     self.save_data()
                     await self.bot.say(self.CONFIGURATION_CHANGED_MSG)
     
@@ -176,47 +199,52 @@ and are considered **False** for: `no`, `n`, `0`, `false`
     async def _voice_gen_get_configs(self, ctx):
         """Shows the current configuration"""
         server = ctx.message.server
-        self.check_server_configs(server)
-        config = self.config[server.id]
+        config = self.get_server_config(server)
+        server_overwrites = self.perms_overwrites.get(server.id, {})
         nb_chats = self.plural_format(len(config["voice_chat_formats"]), "{} generators")
-        if server.id in self.perms_overwrites:
-            def_perms = [pair[0].name for pair in self.perms_overwrites[server.id]]
-        else:
-            def_perms = []
+        afk_bot_str = "will" if config["afk_at_bottom"] else "won't"
+        delay_str = self.plural_format(config["delay"], "{} seconds")
         embed = discord.Embed(title=self.CONFIG_TITLE_FORMAT.format(server=server),
+                              colour=discord.Colour.gold(),
                               description=self.CONFIG_DESC_FORMAT.format(nb_chats=nb_chats,
-                                                                         def_perms=", ".join(def_perms)),
-                              color=discord.Colour.gold())
-        embed.add_field(name="Empty voice channels", value=str(config["empty_voice_channels"]))
-        embed.add_field(name="Max channels per gen", value=str(config["max_channels"]))
-        embed.add_field(name="AFK to the bottom?", value="Yes" if config["afk_at_bottom"] else "No")
-        embed.add_field(name="Moving channels delay", value=self.plural_format(config["delay"], "{} seconds"))
+                                                                         afk_bot=afk_bot_str,
+                                                                         delay=delay_str))
+        for channel_format, channel_config in config["voice_chat_formats"].items():
+            def_perms = server_overwrites.get(channel_format, [])
+            def_perms = [pair[0].name for pair in def_perms]
+            channel_config_str = self.CONFIG_GENERATOR_FORMAT.format(channel_config["empty_voice_channels"],
+                                                                     channel_config["max_channels"],
+                                                                     ", ".join(def_perms))
+            embed.add_field(name=channel_format, value=channel_config_str)
         await self.bot.say(embed=embed)
     
     @_voice_gen.command(name="set_perms", pass_context=True, no_pm=True)
     @checks.mod_or_permissions(manage_channels=True)
-    async def _voice_gen_set_perms(self, ctx, channel_id: str):
-        """Set the generated channels' permissions
-        Uses the given channel's current permissions"""
+    async def _voice_gen_set_perms(self, ctx, channel: discord.Channel, *, generator: str):
+        """Set a generator's channels' permissions
+
+        Uses the given channel's current permissions
+        You can give the channel by its name. It must by surrounded by "double quotes" if it contains a space."""
         message = ctx.message
         server = message.server
-        self.check_server_configs(server)
-        channel = server.get_channel(channel_id)
-        if channel is None:
-            await self.bot.say(self.INVALID_CHANNEL_ID_MSG)
-        elif channel.type != discord.ChannelType.voice:
+        chat_formats = self.get_server_config(server)["voice_chat_formats"]
+        generator_config = chat_formats.get(generator)
+        if channel.type != discord.ChannelType.voice:
             await self.bot.say(self.INVALID_CHANNEL_TYPE_MSG)
+        elif generator_config is None:
+            await self.bot.say(self.GENERATOR_NOT_FOUND_MSG)
         else:
             role_ows = [o for o in channel.overwrites if isinstance(o[0], discord.Role)]
-            self.perms_overwrites[server.id] = role_ows
+            self.perms_overwrites.setdefault(server.id, {})[generator] = role_ows
             perms_list = []
             for ow in role_ows:
                 perms_list.append((ow[0].id, [i.value for i in ow[1].pair()]))
-            self.config[server.id]["default_permissions"] = perms_list
+            generator_config["default_permissions"] = perms_list
             self.save_data()
             # Ask before setting to existing channels
             messages = [message]
             messages.append(await self.bot.say(self.CHANNEL_EDIT_CONFIRM_MSG))
+            # TODO: WET af
             answer = await self.bot.wait_for_message(timeout=30, author=message.author, channel=message.channel,
                                                      check=lambda m: m.content.lower() in ["yes", "no", "y", "n"])
             messages.append(answer)
@@ -224,8 +252,8 @@ and are considered **False** for: `no`, `n`, `0`, `false`
                 messages.append(await self.bot.say(self.CHANNEL_NOT_EDIT_MSG))
             else:
                 messages.append(await self.bot.say(self.CHANNEL_EDITING_MSG))
-                await self.set_channels_perms(server, role_ows)
-                await asyncio.sleep(0.5)
+                await self.set_channels_perms(server, generator, role_ows)
+                await asyncio.sleep(0.5)  # TODO: Eww magic number
                 await self.bot.edit_message(messages[-1], self.CHANNEL_EDITED_MSG)
             await asyncio.sleep(3)
             await self.bot.delete_messages(messages)
@@ -235,23 +263,26 @@ and are considered **False** for: `no`, `n`, `0`, `false`
     @checks.mod_or_permissions(manage_channels=True)
     async def _voice_gen_add(self, ctx, parent_id: str, *, generator: str):
         """Add a new voice channel generator
+
         parent_id must be the id of a channel category; if no channel is found, channels will be outside all categories
         The generator must contain "{}" exactly once. Examples: `Voice Chat #{}`, `Channel {}/20`, `Casual {}`
         It will be replaced by a number starting at 1 and going up."""
         server = ctx.message.server
-        self.check_server_configs(server)
+        server_config = self.get_server_config(server)
+        voice_formats = server_config["voice_chat_formats"]
         if generator.count("{}") != 1:
             await self.bot.say(self.INVALID_CHANNEL_FORMAT_MSG)
-        elif generator.lower() in list(map(lambda s: s.lower(), self.config[server.id]["voice_chat_formats"].keys())):
+        elif generator.lower() in list(map(lambda s: s.lower(), voice_formats.keys())):
             await self.bot.say(self.CHANNEL_FORMAT_EXISTS_MSG)
         else:
+            generator_config = voice_formats.setdefault(generator, copy.deepcopy(self.CHAT_FORMAT_DEFAULT))
             channel = self.bot.get_channel(parent_id)
             if channel is None or self.is_channel_not_category(channel):
                 parent_id = None
-            self.config[server.id]["voice_chat_formats"][generator] = parent_id
+            generator_config["parent"] = parent_id
             self.save_data()
             await self.bot.say(self.ADDED_VOICE_FORMAT_MSG)
-            await self.check_channels(server, generator, parent_id, self.config[server.id])
+            await self.check_channels(server, generator, generator_config, server_config)
             await asyncio.sleep(self.config[server.id]["delay"])
             await self.check_afk_channel(server)
     
@@ -259,14 +290,15 @@ and are considered **False** for: `no`, `n`, `0`, `false`
     @checks.mod_or_permissions(manage_channels=True)
     async def _voice_gen_delete(self, ctx, *, generator: str):
         """Delete a voice channel generator
+
         Asks if you want to delete the channels generated by it."""
         message = ctx.message
         server = message.server
-        self.check_server_configs(server)
-        if generator not in self.config[server.id]["voice_chat_formats"]:
+        voice_formats = self.get_server_config(server)["voice_chat_formats"]
+        if generator not in voice_formats:
             await self.bot.say(self.CHANNEL_FORMAT_NOT_FOUND_MSG)
         else:
-            del self.config[server.id]["voice_chat_formats"][generator]
+            del voice_formats[generator]
             self.save_data()
             await self.bot.say(self.CHANNEL_FORMAT_DELETED_MSG)
             messages = [message]
@@ -287,7 +319,7 @@ and are considered **False** for: `no`, `n`, `0`, `false`
             await self.bot.delete_messages(messages)
     
     # Utilities
-    async def check_channels(self, server, channel_format, parent_id, config):
+    async def check_channels(self, server, channel_format, channel_config, config):
         """Checks for channels following the channel_format.
         If None are found, create them."""
         await self.bot.wait_until_ready()
@@ -296,12 +328,14 @@ and are considered **False** for: `no`, `n`, `0`, `false`
         # Prevent collisions between two simultaneous executions of this event routine on the same generator
         if self.temp_events[channel_format] is False:
             self.temp_events[channel_format] = True
-            empty_voice_channels = config["empty_voice_channels"]
+            empty_voice_channels = channel_config["empty_voice_channels"]
             regex = re.compile(channel_format.format(self.NUMBER_REGEX))
             channel_ids = {}
             channels_without_people = []
             # This is the type of thing which should be supported directly in discord.py, but w/e
-            self.update_channels_position(server)  # I just copy pasted this line in a bunch of places until it worked
+            # I just copy pasted this line in a bunch of places until it worked
+            # I have no idea why it works; Might not be needed anymore
+            self.update_channels_position(server)
             for channel in filter(lambda c: c.type == discord.ChannelType.voice, server.channels):
                 match = regex.fullmatch(channel.name)
                 if match is not None:
@@ -311,7 +345,7 @@ and are considered **False** for: `no`, `n`, `0`, `false`
                         channels_without_people.append(channel_number)
 
             while len(channels_without_people) != empty_voice_channels \
-                    and len(channels_without_people) < config["max_channels"] - 1:
+                    and len(channels_without_people) < channel_config["max_channels"] - 1:
                 if len(channels_without_people) > empty_voice_channels:  # Delete biggest channel(s)
                     channel_id = max(channels_without_people)
                     try:
@@ -322,10 +356,11 @@ and are considered **False** for: `no`, `n`, `0`, `false`
                     del channel_ids[channel_id]
                 elif len(channels_without_people) < empty_voice_channels:  # Create new channel(s)
                     # Fetch one of the missing numbers from the resulting set
-                    missing_number = next(iter(set(range(1, config["max_channels"] + 1)) - set(channel_ids)))
-                    ows = self.perms_overwrites.get(server.id, [])
+                    missing_number = min(set(range(1, channel_config["max_channels"] + 1)) - set(channel_ids))
+                    ows = self.perms_overwrites.get(server.id, {}).get(channel_format, [])
                     chann = await self.create_channel(server, channel_format.format(missing_number), *ows,
-                                                      channel_type=discord.ChannelType.voice, parent_id=parent_id)
+                                                      channel_type=discord.ChannelType.voice,
+                                                      parent_id=channel_config["parent"])
                     if len(channel_ids) > 0:
                         await asyncio.sleep(config["delay"])
                         self.update_channels_position(server)
@@ -340,17 +375,17 @@ and are considered **False** for: `no`, `n`, `0`, `false`
     async def delete_channels(self, server, channel_format):
         """Deletes all voice channels on `server` corresponding to the `channel_format`"""
         regex = re.compile(channel_format.format(self.NUMBER_REGEX))
-        for channel in list(server.channels):  # Making a copy because it's gonna modify during the loop
+        for channel in list(server.channels):  # Making a copy because it's gonna modify in the loop
             if channel.type == discord.ChannelType.voice:
                 match = regex.fullmatch(channel.name)
                 if match is not None:
                     await self.bot.delete_channel(channel)
     
-    async def set_channels_perms(self, server, perms):
+    async def set_channels_perms(self, server, generator, perms):
         """Edits all channels' permissions to the given one if they fit a channel format"""
-        regexes = [re.compile(f.format(self.NUMBER_REGEX)) for f in self.config[server.id]["voice_chat_formats"].keys()]
-        for channel in filter(lambda c: c.type == discord.ChannelType.voice, list(server.channels)):
-            match = discord.utils.find(lambda r: r.fullmatch(channel.name), regexes)
+        regex = re.compile(generator.format(self.NUMBER_REGEX))
+        for channel in [c for c in server.channels if c.type == discord.ChannelType.voice]:
+            match = regex.fullmatch(channel.name)
             if match is not None:
                 for pairs in perms:
                     await self.bot.edit_channel_permissions(channel, pairs[0], pairs[1])
@@ -392,9 +427,8 @@ and are considered **False** for: `no`, `n`, `0`, `false`
         for i, channel in enumerate(channels):
             channel.position = i
     
-    def check_server_configs(self, server):
-        if server.id not in self.config:
-            self.config[server.id] = copy.deepcopy(self.SERVER_DEFAULT)
+    def get_server_config(self, server):
+        return self.config.setdefault(server.id, copy.deepcopy(self.SERVER_DEFAULT))
 
     def is_channel_not_category(self, channel):
         if hasattr(discord.ChannelType, "category"):
@@ -421,7 +455,7 @@ and are considered **False** for: `no`, `n`, `0`, `false`
     
     def check_folders(self):
         if not os.path.exists(self.DATA_FOLDER):
-            print("Creating data folder...")
+            self.logger.info("Creating data folder...")
             os.makedirs(self.DATA_FOLDER, exist_ok=True)
     
     def check_files(self):
@@ -429,20 +463,15 @@ and are considered **False** for: `no`, `n`, `0`, `false`
     
     def check_file(self, file, default):
         if not dataIO.is_valid_json(file):
-            print("Creating empty " + file + "...")
+            self.logger.info("Creating empty " + file + "...")
             dataIO.save_json(file, default)
     
     def load_data(self):
-        # Here, you load the data from the config file.
         self.config = dataIO.load_json(self.DATA_FILE_PATH)
     
     def save_data(self):
-        # Save all the data (if needed)
         dataIO.save_json(self.DATA_FILE_PATH, self.config)
 
 
 def setup(bot):
-    # Creating the cog
-    c = VoiceChannelGenerator(bot)
-    # Finally, add the cog to the bot.
-    bot.add_cog(c)
+    bot.add_cog(VoiceChannelGenerator(bot))
