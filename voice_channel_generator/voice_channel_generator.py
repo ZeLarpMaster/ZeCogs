@@ -19,7 +19,7 @@ class VoiceChannelGenerator:
 Generators create/delete voice channel to fit a configurable number of channels."""
     
     DATA_FOLDER = "data/voice_channel_gen"
-    DATA_FILE_PATH = DATA_FOLDER + "/config.json"
+    DATA_FILE_PATH = DATA_FOLDER + "/config_v2.json"
     
     CONFIG_DEFAULT = {}
     SERVER_DEFAULT = {"voice_chat_formats": {}, "afk_at_bottom": False, "delay": 0.2}
