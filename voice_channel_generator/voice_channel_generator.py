@@ -23,7 +23,8 @@ Generators create/delete voice channel to fit a configurable number of channels.
     
     CONFIG_DEFAULT = {}
     SERVER_DEFAULT = {"voice_chat_formats": {}, "afk_at_bottom": False, "delay": 0.2}
-    CHAT_FORMAT_DEFAULT = {"empty_voice_channels": 2, "max_channels": 25, "default_permissions": [], "parent": None}
+    CHAT_FORMAT_DEFAULT = {"empty_voice_channels": 2, "max_channels": 25, "default_permissions": [], "parent": None,
+                           "user_limit": 0}
     
     NUMBER_REGEX = "(?P<number>\d+)"  # Just a fancy way of matching 1+ digits
     
@@ -46,7 +47,8 @@ Generators create/delete voice channel to fit a configurable number of channels.
     CONFIG_DESC_FORMAT = """There is **{nb_chats}** on the server.
 The AFK channel **{afk_bot}** be stuck to the bottom.
 The delay for this server is **{delay}**."""
-    CONFIG_GENERATOR_FORMAT = """Empty channels: {}
+    CONFIG_GENERATOR_FORMAT = """User limit: {}
+Empty channels: {}
 Max channels: {}
 Permissions: {}"""
     CHANNEL_FORMAT_DELETED_MSG = ":put_litter_in_its_place: Removed the channel generator."
@@ -55,7 +57,11 @@ Permissions: {}"""
     **max_channels** --> **Integer**, maximum amount of channels per generator (can't exceed 25)
     **afk_bottom** --> **Boolean**, whether or not the afk channel should be at the bottom
     **delay** --> **Float**, how many seconds of delay before moving channels
-    
+    **user_limit** --> **Integer**, number of users allowed in generated channels (can't exceed 99; 0 for no limit)
+
+Changes to any of those values will only apply to newly created/deleted channels. \
+It will **not** change existing channels.
+
 **Boolean values** are considered **True** for: `yes`, `y`, `1`, `true`
 and are considered **False** for: `no`, `n`, `0`, `false`
 **Anything else won't do anything.**"""
@@ -183,6 +189,13 @@ and are considered **False** for: `no`, `n`, `0`, `false`
                 if temp_value is not None:
                     if 0 <= temp_value <= 25:
                         value = temp_value
+            elif config_name == "user_limit":
+                key = "user_limit"
+                if config_value.isdigit():
+                    temp_value = int(config_value)
+                    if 0 <= temp_value < 100:
+                        value = temp_value
+                        gen_conf = voice_formats.get(generator)
             else:
                 await self.bot.say(self.CONFIG_NOT_FOUND_MSG)
             # Set the configs
@@ -212,7 +225,8 @@ and are considered **False** for: `no`, `n`, `0`, `false`
         for channel_format, channel_config in config["voice_chat_formats"].items():
             def_perms = server_overwrites.get(channel_format, [])
             def_perms = [pair[0].name for pair in def_perms]
-            channel_config_str = self.CONFIG_GENERATOR_FORMAT.format(channel_config["empty_voice_channels"],
+            channel_config_str = self.CONFIG_GENERATOR_FORMAT.format(channel_config["user_limit"],
+                                                                     channel_config["empty_voice_channels"],
                                                                      channel_config["max_channels"],
                                                                      ", ".join(def_perms))
             embed.add_field(name=channel_format, value=channel_config_str)
@@ -360,7 +374,8 @@ and are considered **False** for: `no`, `n`, `0`, `false`
                     ows = self.perms_overwrites.get(server.id, {}).get(channel_format, [])
                     chann = await self.create_channel(server, channel_format.format(missing_number), *ows,
                                                       channel_type=discord.ChannelType.voice,
-                                                      parent_id=channel_config["parent"])
+                                                      parent_id=channel_config["parent"],
+                                                      user_limit=channel_config["user_limit"])
                     if len(channel_ids) > 0:
                         await asyncio.sleep(config["delay"])
                         self.update_channels_position(server)
@@ -400,11 +415,13 @@ and are considered **False** for: `no`, `n`, `0`, `false`
         if self.config[server.id]["afk_at_bottom"] and server.afk_channel is not None:
             await self.bot.move_channel(server.afk_channel, len(voice_channels) - 1)
 
-    async def create_channel(self, server, name, *overwrites, parent_id, channel_type=discord.ChannelType.text):
+    async def create_channel(self, server, name, *overwrites,
+                             parent_id, user_limit: int=0, channel_type=discord.ChannelType.text):
         """d.py 0.16 recipe for creating a channel including category support"""
         payload = {
             "name": name,
-            "type": str(channel_type)
+            "type": str(channel_type),
+            "user_limit": user_limit
         }
         if parent_id is not None:
             payload["parent_id"] = parent_id
