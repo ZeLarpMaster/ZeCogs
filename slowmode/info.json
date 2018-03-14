@@ -1,0 +1,10 @@
+{
+    "AUTHOR" : "ZeLarpMaster#0819",
+    "INSTALL_MSG" : "Enjoy slowing down your ~~dirty dirty spammers~~ users! Remember that [p]check_slow exists if some people get stuck muted (although it shouldn't happen)",
+    "NAME" : "SlowMode",
+    "SHORT" : "Prevent users from sending messages too fast",
+    "DESCRIPTION" : "Specify how fast people can send messages in any channel. You can also allow them to speak again if they aren't unmuted fast enough.",
+    "TAGS" : ["slowmode", "moderation"],
+    "REQUIREMENTS" : [],
+    "HIDDEN" : false
+}
