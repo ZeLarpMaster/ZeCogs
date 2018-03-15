@@ -49,7 +49,9 @@ If timezone2 is omitted, it will only respond to *now* requests."""
     async def _time_converter(self, ctx, time, timezone1, timezone2=None):
         """Convert the time from timezone1 to timezone2
 
-        List of supported timezones: <https://en.wikipedia.org/wiki/List_of_tz_database_time_zones>."""
+        List of supported timezones: <https://en.wikipedia.org/wiki/List_of_tz_database_time_zones>.
+        The timezones must be the last part of the TZ column.
+        For example, you would check the time in 'Africa/Abidjan' by doing `[p]time now Abidjan`"""
         if time is None and timezone1 is None:
             await self.bot.send_cmd_help(ctx)
         else:
@@ -82,7 +84,10 @@ If timezone2 is omitted, it will only respond to *now* requests."""
     @alias.command(name="add", pass_context=True)
     @checks.mod_or_permissions(manage_roles=True)
     async def _add_alias(self, ctx, alias_name, timezone):
-        """Add a new timezone alias"""
+        """Add a new timezone alias
+
+        For example, with an alias named 'PST' pointing timezone 'GMT+8',
+        you would do: `[p]time now PST` and it would be the same as `[p]time now GMT+8`"""
         if " " not in alias_name and " " not in timezone:
             alias_name = alias_name.lower()
             timezone = timezone.lower()
