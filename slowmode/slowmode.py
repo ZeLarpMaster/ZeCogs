@@ -45,6 +45,9 @@ After sending a message, you won't be able to send any other messages, until \
     SLOWMODE_MAX_TIME_FORMAT = """If there aren't enough messages sent by other users after a maximum of {max_time}, \
 you will be able to send messages again. Keep in mind that your last message will \
 get deleted **if** it's within the last {messages}. Don't worry, this won't get you a warning.\n\n"""
+    MISSING_MANAGE_PERMISSIONS = "\nI do not have the permission to 'Manage Permissions' on that channel " \
+                                 "or 'Manage Roles' in the server. Without it, I cannot prevent people from talking " \
+                                 "while they are slowed."
     
     def __init__(self, bot: discord.Client):
         self.bot = bot
@@ -155,8 +158,9 @@ get deleted **if** it's within the last {messages}. Don't worry, this won't get 
                 else:
                     new_slowmode["overwrites"] = copy.deepcopy(self.slowmodes[channel.id]["overwrites"])
                 self.slowmodes[channel.id] = new_slowmode
-                await self.bot.say(":white_check_mark: Slowmode updated.\n" + self.get_slowmode_msg(channel,
-                                                                                                    new_slowmode))
+                can_manage = channel.permissions_for(channel.server.me).manage_roles
+                response = ":white_check_mark: Slowmode updated.\n" + self.get_slowmode_msg(channel, new_slowmode)
+                await self.bot.say(response + ("" if can_manage else self.MISSING_MANAGE_PERMISSIONS))
             self.save_data()
 
     @commands.group(name="check_slow", pass_context=True, invoke_without_command=True)
