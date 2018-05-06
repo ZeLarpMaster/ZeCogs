@@ -26,7 +26,7 @@ class SlowMode:  # TODO: Rewrite the whole thing. No easier way out of this.
     DEFAULT_WELCOMED_USERS = {}
     
     DEFAULT_SLOWMODES = {}
-    DEFAULT_SLOWMODE = {"time": 0, "messages": 0, "overwrites": {}, "max_time": 0}
+    DEFAULT_SLOWMODE = {"time": 0, "messages": 0, "overwrites": {}, "max_time": 0, "unstoppable_roles": []}
     
     TIME_FORMATS = ["{} seconds", "{} minutes", "{} hours", "{} days", "{} weeks"]
     TIME_FRACTIONS = [60, 60, 24, 7]
@@ -48,6 +48,13 @@ get deleted **if** it's within the last {messages}. Don't worry, this won't get 
     MISSING_MANAGE_PERMISSIONS = "\nI do not have the permission to 'Manage Permissions' on that channel " \
                                  "or 'Manage Roles' in the server. Without it, I cannot prevent people from talking " \
                                  "while they are slowed."
+    INVALID_ROLE_OR_SERVER = ":x: The given role and channel don't share the same server."
+    UNSLOWABLE_SET = ":white_check_mark: **{role}** is now unslowable in {channel}."
+    UNSLOWABLE_LIST_TITLE = "List of unslowable roles in #{channel}."
+    ALREADY_UNSLOWABLE = ":x: **{}** is already unslowable."
+    ALREADY_SLOWABLE = ":x: **{}** is already slowable."
+    SLOWABLE_SET = ":white_check_mark: **{role}** is now slowable in {channel}."
+    NO_SLOWMODE_IN_CHANNEL = ":x: There is no slowmode in {}."
     
     def __init__(self, bot: discord.Client):
         self.bot = bot
@@ -62,11 +69,11 @@ get deleted **if** it's within the last {messages}. Don't worry, this won't get 
     async def on_message(self, message):
         if message.channel.id in self.slowmodes:
             channel = message.channel
+            slowmode = self.get_channel_slowmode(channel)
             author = message.author
             self.increment_message_counts(channel)
-            if not author.bot and not self.check_mod_or_admin(author):
+            if not author.bot and not self.check_mod_or_admin(author, *slowmode.get("unstoppable_roles", [])):
                 await self.check_for_welcome(author, channel)
-                slowmode = self.get_channel_slowmode(channel)
                 if slowmode["time"] > 0 or slowmode["messages"] > 0:
                     if slowmode["messages"] > 0 and channel.id in self.message_trackers \
                             and author.id in self.message_trackers[channel.id]:
@@ -147,6 +154,7 @@ get deleted **if** it's within the last {messages}. Don't worry, this won't get 
             if max_time is not None:
                 new_slowmode["max_time"] = max_time
             if new_slowmode["time"] == 0 and new_slowmode["messages"] == 0 and new_slowmode["max_time"] == 0:
+                del self.slowmodes[channel.id]["unstoppable_roles"]
                 del self.slowmodes[channel.id]["overwrites"]
                 del self.slowmodes[channel.id]
                 await self.bot.say(":put_litter_in_its_place: Slowmode in {} deleted.".format(channel.mention))
@@ -157,6 +165,7 @@ get deleted **if** it's within the last {messages}. Don't worry, this won't get 
                     new_slowmode["overwrites"].update(map(lambda o: (o[0].id, o[1].send_messages), member_overwrites))
                 else:
                     new_slowmode["overwrites"] = copy.deepcopy(self.slowmodes[channel.id]["overwrites"])
+                    new_slowmode["unstoppable_roles"] = self.slowmodes[channel.id].get("unstoppable_roles", [])
                 self.slowmodes[channel.id] = new_slowmode
                 can_manage = channel.permissions_for(channel.server.me).manage_roles
                 response = ":white_check_mark: Slowmode updated.\n" + self.get_slowmode_msg(channel, new_slowmode)
@@ -179,16 +188,87 @@ get deleted **if** it's within the last {messages}. Don't worry, this won't get 
     @checks.mod_or_permissions(manage_channels=True)
     async def check_all_slows(self, ctx):
         """Checks and fixes all slowmodes in the server"""
+        msg_channel = ctx.message.channel
         for c_id, slowmode in self.slowmodes.items():
-            channel = self.bot.get_channel(c_id)
-            if channel is not None and channel.server == ctx.message.server:
+            channel = msg_channel.server.get_channel(c_id)
+            if channel is not None:
                 unmuting, muting = await self.check_channel(channel, slowmode)
                 result = "--- {} --- \n**Unmuting**: {}\n**Should be muted**: {}".format(
                     channel.mention, ", ".join(u.name for u in unmuting), ", ".join(u.name for u in muting))
                 overwrites = slowmode.get("overwrites", {})
                 for member in unmuting:
                     asyncio.ensure_future(self.unmute_user(channel, member, overwrites.get(member.id)))
-                await self.bot.send_message(ctx.message.channel, result)
+                await self.bot.send_message(msg_channel, result)
+
+    @commands.group(name="unslowable", pass_context=True, no_pm=True, invoke_without_command=True)
+    @checks.mod_or_permissions(manage_roles=True)
+    async def unslowable(self, ctx, channel: discord.Channel, *, role: discord.Role):
+        """Add a role to the list of roles which can't be slowed in the given channel"""
+        if role.server != channel.server:
+            response = self.INVALID_ROLE_OR_SERVER
+        else:
+            slowmode = self.get_channel_slowmode(channel)
+            if channel.id not in self.slowmodes:
+                response = self.NO_SLOWMODE_IN_CHANNEL.format(channel.mention)
+            elif role.id in slowmode.get("unstoppable_roles", []):
+                response = self.ALREADY_UNSLOWABLE.format(role.name)
+            else:
+                slowmode.setdefault("unstoppable_roles", []).append(role.id)
+                self.save_data()
+                response = self.UNSLOWABLE_SET.format(role=role.name, channel=channel.mention)
+        await self.bot.send_message(ctx.message.channel, response)
+
+    @unslowable.command(name="all", pass_context=True, no_pm=True)
+    @checks.mod_or_permissions(manage_roles=True)
+    async def unslowable_all(self, ctx, *, role: discord.Role):
+        """Adds a role to the list of roles which can't be slowed in all slowmodes of the server"""
+        msg_channel = ctx.message.channel
+        if msg_channel.server != role.server:
+            response = self.INVALID_ROLE_OR_SERVER
+        else:
+            modified_channels = []
+            for c_id, slowmode in self.slowmodes.items():
+                channel = msg_channel.server.get_channel(c_id)
+                if channel is not None:
+                    if role.id not in slowmode.get("unstoppable_roles", []):
+                        slowmode.setdefault("unstoppable_roles", []).append(role.id)
+                    modified_channels.append(channel.mention)
+            self.save_data()
+            response = self.UNSLOWABLE_SET.format(role=role.name, channel=self.list(modified_channels))
+        await self.bot.send_message(msg_channel, response)
+
+    @unslowable.command(name="remove", pass_context=True, no_pm=True)
+    @checks.mod_or_permissions(manage_roles=True)
+    async def unslowable_remove(self, ctx, channel: discord.Channel, *, role: discord.Role):
+        """Removes a role from the list of roles which can't be slowed in the given channel"""
+        if role.server != channel.server:
+            response = self.INVALID_ROLE_OR_SERVER
+        else:
+            slowmode = self.get_channel_slowmode(channel)
+            if channel.id not in self.slowmodes:
+                response = self.NO_SLOWMODE_IN_CHANNEL.format(channel.mention)
+            elif role.id not in slowmode.get("unstoppable_roles", []):
+                response = self.ALREADY_SLOWABLE.format(role.name)
+            else:
+                slowmode["unstoppable_roles"].remove(role.id)
+                self.save_data()
+                response = self.SLOWABLE_SET.format(role=role.name, channel=channel.mention)
+        await self.bot.send_message(ctx.message.channel, response)
+
+    @unslowable.command(name="list", pass_context=True, no_pm=True)
+    @checks.mod_or_permissions(manage_roles=True)
+    async def unslowable_list(self, ctx, channel: discord.Channel):
+        """Lists the unslowable roles in a channel"""
+        slowmode = self.get_channel_slowmode(channel)
+        unslowable_roles = []
+        for role_id in slowmode.get("unstoppable_roles", []):
+            role = discord.utils.get(channel.server.roles, id=role_id)
+            if role is not None:
+                unslowable_roles.append(role.mention)
+        embed = discord.Embed(color=discord.Colour.blue())
+        embed.title = self.UNSLOWABLE_LIST_TITLE.format(channel=channel.name)
+        embed.description = self.list(unslowable_roles) if len(unslowable_roles) > 0 else "No unslowable roles"
+        await self.bot.send_message(ctx.message.channel, embed=embed)
 
     # Utilities
     async def check_channel(self, channel, slowmode=None):
@@ -286,7 +366,7 @@ get deleted **if** it's within the last {messages}. Don't worry, this won't get 
             else:
                 format_dict["max_time_format"] = self.SLOWMODE_MAX_TIME_FORMAT.format(**format_dict)
             await self.bot.send_message(user, self.SLOWMODE_HELP_FORMAT.format(**format_dict))
-    
+
     def increment_message_counts(self, channel):
         slowmode = self.get_channel_slowmode(channel)
         if channel.id in self.message_trackers:
@@ -315,14 +395,29 @@ get deleted **if** it's within the last {messages}. Don't worry, this won't get 
                                            msgs=self.plural_format(slowmode["messages"], "{} messages"),
                                            max_time=max_time_str)
 
-    def check_mod_or_admin(self, member):
+    def check_mod_or_admin(self, member, *additional_roles):
         result = False
         mod_and_admin_roles = [self.bot.settings.get_server_admin(member.server).lower(),
                                self.bot.settings.get_server_mod(member.server).lower()]
         for role in member.roles:
             if role.name.lower() in mod_and_admin_roles:
                 result = True
+            elif role.id in additional_roles:
+                result = True
         return result
+
+    def list(self, entries: typing.List[str]) -> str:
+        """Lists the elements in entries in natural english language as such:
+        For 5 entries: entry, entry, entry, entry and entry
+        For 3 entries: entry, entry and entry
+        For 2 entries: entry and entry
+        For 1 entry: entry
+
+        If there's 0 entries, this will throw an error"""
+        anded = [entries.pop(-1)]
+        if len(entries) > 0:
+            anded.insert(0, ", ".join(entries))
+        return " and ".join(anded)
 
     def humanize_time(self, time: int) -> str:
         """Returns a string of the humanized given time keeping only the 2 biggest formats
