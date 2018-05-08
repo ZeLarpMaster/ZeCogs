@@ -55,6 +55,7 @@ get deleted **if** it's within the last {messages}. Don't worry, this won't get 
     ALREADY_SLOWABLE = ":x: **{}** is already slowable."
     SLOWABLE_SET = ":white_check_mark: **{role}** is now slowable in {channel}."
     NO_SLOWMODE_IN_CHANNEL = ":x: There is no slowmode in {}."
+    ALREADY_UNSLOWABLE_IN_ALL_CHANNELS = "Nothing changed, **{role}** was already unslowable in all of your slowmodes"
     
     def __init__(self, bot: discord.Client):
         self.bot = bot
@@ -234,7 +235,10 @@ get deleted **if** it's within the last {messages}. Don't worry, this won't get 
                         slowmode.setdefault("unstoppable_roles", []).append(role.id)
                     modified_channels.append(channel.mention)
             self.save_data()
-            response = self.UNSLOWABLE_SET.format(role=role.name, channel=self.list(modified_channels))
+            if len(modified_channels) > 0:
+                response = self.UNSLOWABLE_SET.format(role=role.name, channel=channels_str)
+            else:
+                response = self.ALREADY_UNSLOWABLE_IN_ALL_CHANNELS.format(role=role.name)
         await self.bot.send_message(msg_channel, response)
 
     @unslowable.command(name="remove", pass_context=True, no_pm=True)
@@ -267,7 +271,7 @@ get deleted **if** it's within the last {messages}. Don't worry, this won't get 
                 unslowable_roles.append(role.mention)
         embed = discord.Embed(color=discord.Colour.blue())
         embed.title = self.UNSLOWABLE_LIST_TITLE.format(channel=channel.name)
-        embed.description = self.list(unslowable_roles) if len(unslowable_roles) > 0 else "No unslowable roles"
+        embed.description = self.list(unslowable_roles) if len(unslowable_roles) > 0 else "no unslowable roles"
         await self.bot.send_message(ctx.message.channel, embed=embed)
 
     # Utilities
