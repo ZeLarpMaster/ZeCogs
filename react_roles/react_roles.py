@@ -423,7 +423,10 @@ Gave a total of {g} roles."""
         await self.bot.wait_until_ready()
         with contextlib.suppress(RuntimeError):  # Suppress the "Event loop is closed" error
             while self == self.bot.get_cog(self.__class__.__name__):
-                key = await self.role_queue.get()
+                try:
+                    key = await self.role_queue.get()
+                except asyncio.CancelledError:
+                    break
                 q = self.role_map.pop(key)
                 if q is not None and q.get("mem") is not None:
                     mem = q["mem"]
