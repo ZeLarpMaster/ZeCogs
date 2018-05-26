@@ -464,7 +464,8 @@ Gave a total of {g} roles."""
             for entry in link:
                 channel_id, message_id = entry.split("_", 1)
                 role_list.update(self.get_all_roles_from_message(server_id, channel_id, message_id))
-                link_dict[entry] = role_list
+            for entry in link:
+-               link_dict.setdefault(entry, set()).update(role_list)
         self.links[server_id] = link_dict
 
     def remove_links(self, server_id, name):
@@ -472,7 +473,13 @@ Gave a total of {g} roles."""
         link_dict = self.links.get(server_id, {})
         for entry in entry_list:
             if entry in link_dict:
-                del link_dict[entry]
+-               channel_id, message_id = entry.split("_", 1)
++               del link_dict[entry]
+-               role_list = set()
+-               role_list.update(self.get_all_roles_from_message(server_id, channel_id, message_id))
+-               link_dict[entry].difference_update(role_list)
+-               if len(link_dict[entry]) == 0:
+-                   del link_dict[entry]
 
     # Cache -- Needed to keep the actual role object in cache instead of looking for it every time in the server's roles
     def add_to_cache(self, server_id, channel_id, message_id, emoji_str, role):
