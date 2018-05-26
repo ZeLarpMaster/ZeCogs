@@ -474,7 +474,6 @@ Gave a total of {g} roles."""
         for entry in entry_list:
             if entry in link_dict:
 -               channel_id, message_id = entry.split("_", 1)
-+               del link_dict[entry]
 -               role_list = set()
 -               role_list.update(self.get_all_roles_from_message(server_id, channel_id, message_id))
 -               link_dict[entry].difference_update(role_list)
