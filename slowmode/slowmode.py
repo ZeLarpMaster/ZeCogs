@@ -9,6 +9,7 @@ import logging
 import typing
 
 from discord.ext import commands
+from .cogs.utils import pagify
 from .utils import checks
 from .utils.dataIO import dataIO
 from asyncio.futures import CancelledError
@@ -183,7 +184,8 @@ get deleted **if** it's within the last {messages}. Don't worry, this won't get 
         overwrites = self.get_channel_slowmode(channel).get("overwrites", {})
         for member in unmuting:
             asyncio.ensure_future(self.unmute_user(channel, member, overwrites.get(member.id)))
-        await self.bot.send_message(ctx.message.channel, result)
+        for page in pagify(result, delims=[", "], shorten_by=16):
+            await self.bot.send_message(ctx.message.channel, page)
 
     @check_user_slowmode.command(name="all", pass_context=True, no_pm=True)
     @checks.mod_or_permissions(manage_channels=True)
@@ -199,7 +201,8 @@ get deleted **if** it's within the last {messages}. Don't worry, this won't get 
                 overwrites = slowmode.get("overwrites", {})
                 for member in unmuting:
                     asyncio.ensure_future(self.unmute_user(channel, member, overwrites.get(member.id)))
-                await self.bot.send_message(msg_channel, result)
+                for page in pagify(result, delims=[", "], shorten_by=16):
+                    await self.bot.send_message(msg_channel, page)
 
     @commands.group(name="unslowable", pass_context=True, no_pm=True, invoke_without_command=True)
     @checks.mod_or_permissions(manage_roles=True)
