@@ -9,7 +9,7 @@ import logging
 import typing
 
 from discord.ext import commands
-from .cogs.utils import pagify
+from .utils.chat_formatting import pagify
 from .utils import checks
 from .utils.dataIO import dataIO
 from asyncio.futures import CancelledError
