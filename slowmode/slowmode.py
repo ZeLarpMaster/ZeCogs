@@ -239,7 +239,7 @@ get deleted **if** it's within the last {messages}. Don't worry, this won't get 
                     modified_channels.append(channel.mention)
             self.save_data()
             if len(modified_channels) > 0:
-                response = self.UNSLOWABLE_SET.format(role=role.name, channel=channels_str)
+                response = self.UNSLOWABLE_SET.format(role=role.name, channel=", ".join(modified_channels))
             else:
                 response = self.ALREADY_UNSLOWABLE_IN_ALL_CHANNELS.format(role=role.name)
         await self.bot.send_message(msg_channel, response)
