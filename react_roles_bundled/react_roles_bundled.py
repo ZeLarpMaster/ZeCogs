@@ -83,7 +83,7 @@ Gave a total of {g} roles."""
         self.links = {}  # {server.id: {channel.id_message.id: [role]}}
         self.processing_wait_time = 0 if self.MAXIMUM_PROCESSED_PER_SECOND == 0 else 1/self.MAXIMUM_PROCESSED_PER_SECOND
         asyncio.ensure_future(self._init_bot_manipulation())
-        asyncio.ensure_future(self.process_role_queue())
+        self.role_processor = asyncio.ensure_future(self.process_role_queue())
     
     # Events
     async def on_reaction_add(self, reaction, user):
@@ -159,6 +159,7 @@ Gave a total of {g} roles."""
 
     def __unload(self):
         self.bot.connection._get_message = self.__og_get_message
+        self.role_processor.cancel()
     
     # Commands
     @commands.group(name="roles", pass_context=True, no_pm=True, invoke_without_command=True)
@@ -425,7 +426,7 @@ Gave a total of {g} roles."""
     async def process_role_queue(self):  # This exists to update multiple roles at once when possible
         """Loops until the cog is unloaded and processes the role assignments when it can"""
         await self.bot.wait_until_ready()
-        with contextlib.suppress(RuntimeError):  # Suppress the "Event loop is closed" error
+        with contextlib.suppress(RuntimeError, asyncio.CancelledError):  # Suppress the "Event loop is closed" error
             while self == self.bot.get_cog(self.__class__.__name__):
                 key = await self.role_queue.get()
                 q = self.role_map.pop(key)
@@ -465,7 +466,8 @@ Gave a total of {g} roles."""
             for entry in link:
                 channel_id, message_id = entry.split("_", 1)
                 role_list.update(self.get_all_roles_from_message(server_id, channel_id, message_id))
-                link_dict[entry] = role_list
+            for entry in link:
+                link_dict.setdefault(entry, set()).update(role_list)
         self.links[server_id] = link_dict
 
     def remove_links(self, server_id, name):
@@ -473,7 +475,12 @@ Gave a total of {g} roles."""
         link_dict = self.links.get(server_id, {})
         for entry in entry_list:
             if entry in link_dict:
-                del link_dict[entry]
+                channel_id, message_id = entry.split("_", 1)
+                role_list = set()
+                role_list.update(self.get_all_roles_from_message(server_id, channel_id, message_id))
+                link_dict[entry].difference_update(role_list)
+                if len(link_dict[entry]) == 0:
+                    del link_dict[entry]
 
     # Cache -- Needed to keep the actual role object in cache instead of looking for it every time in the server's roles
     def add_to_cache(self, server_id, channel_id, message_id, emoji_str, role):
