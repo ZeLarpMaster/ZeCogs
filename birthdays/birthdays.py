@@ -180,7 +180,6 @@ class Birthdays:
 
         Happens when someone changes their birthday and there's nobody else in the same day"""
         birthdays = self.config["birthdays"]
-        set(self.bot.get_all_members())
         for date, bdays in birthdays.copy().items():
             for user_id, year in bdays.copy().items():
                 if not any(s.get_member(user_id) is not None for s in self.bot.servers):
