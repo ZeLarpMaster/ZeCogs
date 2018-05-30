@@ -9,6 +9,7 @@ import logging
 import typing
 
 from discord.ext import commands
+from .utils.chat_formatting import pagify
 from .utils import checks
 from .utils.dataIO import dataIO
 from asyncio.futures import CancelledError
@@ -183,7 +184,8 @@ get deleted **if** it's within the last {messages}. Don't worry, this won't get 
         overwrites = self.get_channel_slowmode(channel).get("overwrites", {})
         for member in unmuting:
             asyncio.ensure_future(self.unmute_user(channel, member, overwrites.get(member.id)))
-        await self.bot.send_message(ctx.message.channel, result)
+        for page in pagify(result, delims=[", "], shorten_by=16):
+            await self.bot.send_message(ctx.message.channel, page)
 
     @check_user_slowmode.command(name="all", pass_context=True, no_pm=True)
     @checks.mod_or_permissions(manage_channels=True)
@@ -199,7 +201,8 @@ get deleted **if** it's within the last {messages}. Don't worry, this won't get 
                 overwrites = slowmode.get("overwrites", {})
                 for member in unmuting:
                     asyncio.ensure_future(self.unmute_user(channel, member, overwrites.get(member.id)))
-                await self.bot.send_message(msg_channel, result)
+                for page in pagify(result, delims=[", "], shorten_by=16):
+                    await self.bot.send_message(msg_channel, page)
 
     @commands.group(name="unslowable", pass_context=True, no_pm=True, invoke_without_command=True)
     @checks.mod_or_permissions(manage_roles=True)
@@ -236,7 +239,7 @@ get deleted **if** it's within the last {messages}. Don't worry, this won't get 
                     modified_channels.append(channel.mention)
             self.save_data()
             if len(modified_channels) > 0:
-                response = self.UNSLOWABLE_SET.format(role=role.name, channel=channels_str)
+                response = self.UNSLOWABLE_SET.format(role=role.name, channel=", ".join(modified_channels))
             else:
                 response = self.ALREADY_UNSLOWABLE_IN_ALL_CHANNELS.format(role=role.name)
         await self.bot.send_message(msg_channel, response)
