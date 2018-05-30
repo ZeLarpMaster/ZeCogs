@@ -86,7 +86,7 @@ Gave a total of {g} roles."""
         self.links = {}  # {server.id: {channel.id_message.id: [role]}}
         self.processing_wait_time = 0 if self.MAXIMUM_PROCESSED_PER_SECOND == 0 else 1/self.MAXIMUM_PROCESSED_PER_SECOND
         asyncio.ensure_future(self._init_bot_manipulation())
-        asyncio.ensure_future(self.process_role_queue())
+        self.role_processor = asyncio.ensure_future(self.process_role_queue())
     
     # Events
     async def on_reaction_add(self, reaction, user):
@@ -152,7 +152,7 @@ Gave a total of {g} roles."""
 
     def __unload(self):
         # This method is ran whenever the bot unloads this cog.
-        pass
+        self.role_processor.cancel()
     
     # Commands
     @commands.group(name="roles", pass_context=True, no_pm=True, invoke_without_command=True)
@@ -421,7 +421,7 @@ Gave a total of {g} roles."""
     async def process_role_queue(self):  # This exists to update multiple roles at once when possible
         """Loops until the cog is unloaded and processes the role assignments when it can"""
         await self.bot.wait_until_ready()
-        with contextlib.suppress(RuntimeError):  # Suppress the "Event loop is closed" error
+        with contextlib.suppress(RuntimeError, asyncio.CancelledError):  # Suppress the "Event loop is closed" error
             while self == self.bot.get_cog(self.__class__.__name__):
                 key = await self.role_queue.get()
                 q = self.role_map.pop(key)
