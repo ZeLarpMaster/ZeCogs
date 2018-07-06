@@ -1,4 +1,5 @@
 import asyncio
+import contextlib
 import os.path
 import os
 import discord
@@ -56,7 +57,8 @@ class Welcome:
     
     # Events
     async def on_member_join(self, member):
-        await self._welcome_member(member)
+        with contextlib.suppress(RuntimeError):
+            await self._welcome_member(member)
     
     # Commands
     @commands.group(pass_context=True, no_pm=True, invoke_without_command=True)
@@ -186,7 +188,7 @@ class Welcome:
             if content is not None:
                 img_path = self.DATA_FOLDER + "/" + server_id + "." + img_match.group(4)
                 with open(img_path, "bw") as img_file:
-                    img_file.write(content)
+                    img_file.write(content.read())
                 result = img_path
             else:
                 result = False
