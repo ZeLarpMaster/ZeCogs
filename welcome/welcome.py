@@ -126,7 +126,7 @@ class Welcome:
         conf = self.get_config(server.id)
         if len(img_url) > 0:
             msgs.append(await self.bot.send_message(channel, self.REQUESTING_IMAGE))
-            img_result = self.download_server_welcome(server.id, img_url)
+            img_result = await self.download_server_welcome(server.id, img_url)
             if img_result is None:
                 await self.temp_send(channel, msgs, self.INVALID_IMAGE_FORMAT)
             elif img_result is False:
