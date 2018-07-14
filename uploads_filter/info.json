@@ -1,0 +1,10 @@
+{
+    "AUTHOR" : "ZeLarpMaster#0819",
+    "INSTALL_MSG" : "Enjoy filtering your channels' uploads!",
+    "NAME" : "UploadsFilter",
+    "SHORT" : "Allows you to filter file uploads on specific channels",
+    "DESCRIPTION" : "Provides you with commands to specify filters which delete any attachments with prehibited file extensions",
+    "TAGS" : ["attachment", "filter", "moderation"],
+    "REQUIREMENTS" : [],
+    "HIDDEN" : false
+}
