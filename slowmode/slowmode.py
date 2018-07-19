@@ -326,7 +326,7 @@ get deleted **if** it's within the last {messages}. Don't worry, this won't get 
         if overwrite is None:
             perms.send_messages = None
         else:
-            perms.send_messages = overwrite[1]
+            perms.send_messages = overwrite
         if perms.is_empty():
             await self.bot.delete_channel_permissions(channel, user)
         else:
