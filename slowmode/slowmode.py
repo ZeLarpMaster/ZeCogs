@@ -7,6 +7,7 @@ import copy
 import contextlib
 import logging
 import typing
+import sys
 
 from discord.ext import commands
 from .utils.chat_formatting import pagify
@@ -57,6 +58,9 @@ get deleted **if** it's within the last {messages}. Don't worry, this won't get 
     SLOWABLE_SET = ":white_check_mark: **{role}** is now slowable in {channel}."
     NO_SLOWMODE_IN_CHANNEL = ":x: There is no slowmode in {}."
     ALREADY_UNSLOWABLE_IN_ALL_CHANNELS = "Nothing changed, **{role}** was already unslowable in all of your slowmodes"
+    TIME_TOO_BIG = (":x: Error: One of the given numbers is too big for my operating system! (max: {})\n"
+                    "If you want an infinite number of seconds to prevent your users from typing ever again, "
+                    "I suggest 31536000 (10 years) or 315360000 (100 years).").format(sys.maxsize)
     
     def __init__(self, bot: discord.Client):
         self.bot = bot
@@ -146,6 +150,8 @@ get deleted **if** it's within the last {messages}. Don't worry, this won't get 
                 await self.bot.say("**There is no slowmode in {}.**".format(channel.mention))
             else:
                 await self.bot.say(self.get_slowmode_msg(channel, slowmode))
+        elif time > sys.maxsize or messages > sys.maxsize or max_time > sys.maxsize:
+            await self.bot.say(self.TIME_TOO_BIG)
         else:
             # Update current slowmode
             new_slowmode = copy.deepcopy(self.DEFAULT_SLOWMODE)
