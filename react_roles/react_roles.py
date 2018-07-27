@@ -68,6 +68,7 @@ Gave a total of {g} roles."""
     LINK_MESSAGE_NOT_FOUND = "The following messages weren't found: {}"
     LINK_CHANNEL_NOT_FOUND = "The following channels weren't found: {}"
     LINK_PAIR_INVALID = "The following channel-message pairs were invalid: {}"
+    NO_LINKED_MESSAGES_SPECIFIED = "You did not specify any channel-message pair"
     LINK_FAILED = ":x: Failed to link reactions.\n"
     LINK_SUCCESSFUL = ":white_check_mark: Successfully linked the reactions."
     LINK_NAME_TAKEN = ":x: That link name is already used in the current server. Remove it before assigning to it."
@@ -237,6 +238,8 @@ Gave a total of {g} roles."""
         if len(messages_not_found) > 0:
             confimation_msg += self.LINK_MESSAGE_NOT_FOUND.format(
                 ", ".join("{} in <#{}>".format(p[0], p[1]) for p in messages_not_found)) + "\n"
+        if len(linked_messages) == 0:
+            confimation_msg += self.NO_LINKED_MESSAGES_SPECIFIED
         if len(confimation_msg) > 0:
             response = self.LINK_FAILED + confimation_msg
         else:
