@@ -1,0 +1,10 @@
+{
+    "AUTHOR" : "ZeLarpMaster#0819",
+    "INSTALL_MSG" : "Thanks for installing my voice logs cog and enjoy!",
+    "NAME" : "VoiceLogs",
+    "SHORT" : "Allow moderators to access voice activity.",
+    "DESCRIPTION" : "Allows moderators to access users' and channels' voice activity with timestamps and duration.",
+    "TAGS" : ["voice", "activity", "logs"],
+    "REQUIREMENTS" : [],
+    "HIDDEN" : false
+}
