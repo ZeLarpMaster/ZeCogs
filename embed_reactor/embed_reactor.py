@@ -22,6 +22,7 @@ class EmbedReactor:
 
     CONFIG_DEFAULT = {}
 
+    REACTION_CAP = 20
     EMOTE_REGEX = re.compile("<a?:[a-zA-Z0-9_]{2,32}:(\d{1,20})>")
     URL_REGEX = re.compile("<?(https?|ftp)://[^\s/$.?#].[^\s]*>?")
 
@@ -31,6 +32,7 @@ class EmbedReactor:
     LACKING_PERMISSIONS = ":x: I don't have the permission to add reactions in that channel."
     LACKING_PERMISSIONS_TO_TEST = ":x: I can't test the existence of those emotes because I can't add reactions here."
     MUST_BE_SERVER_CHANNEL = ":x: The channel must be in a server."
+    TOO_MANY_REACTIONS = ":x: Too many reactions! I can't add more than {} reactions.".format(REACTION_CAP)
 
     def __init__(self, bot: discord.Client):
         self.bot = bot
@@ -74,13 +76,23 @@ class EmbedReactor:
     @commands.command(name="embed_reactor", pass_context=True)
     @checks.mod_or_permissions(manage_channels=True)
     async def _embed_reactor(self, ctx: Context, channel: discord.Channel, *reactions):
-        """Sets the reactions added to embeds in a channel"""
+        """Sets the reactions added to embeds in a channel
+
+        If no reaction is given, resets the reactions for the channel
+        reactions is a list of space-separated emojis (server or unicode)
+        Custom server emojis must be visible to the bot
+        Example to set 👍 👎 as reactions: [p]embed_reactor #my-channel 👍 👎
+        Example to remove the reactions: [p]embed_reactor #my-channel"""
         message = ctx.message
         invalid_emotes = []
-        for emote in reactions:
-            if await self.is_valid_emote(emote, message) is False:
-                invalid_emotes.append(emote)
-        if len(reactions) == 0:
+        if len(reactions) <= self.REACTION_CAP:
+            for emote in reactions:
+                if await self.is_valid_emote(emote, message) is False:
+                    invalid_emotes.append(emote)
+
+        if len(reactions) > self.REACTION_CAP:
+            response = self.TOO_MANY_REACTIONS
+        elif len(reactions) == 0:
             self.config.pop(channel.id, None)
             self.preprocessed_config.pop(channel.id, None)
             response = self.REMOVED_CHANNEL_REACTOR.format(channel.mention)
