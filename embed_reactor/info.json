@@ -1,0 +1,10 @@
+{
+    "AUTHOR" : "ZeLarpMaster#0819",
+    "INSTALL_MSG" : "Enjoy adding reactions to every embed in some channels!",
+    "NAME" : "EmbedReactor",
+    "SHORT" : "Allows you to add specific reactions to every embed sent in specified channels.",
+    "DESCRIPTION" : "Choose which reactions to send to embeds sent in a channel. You can send different reactions in different channels as desired.",
+    "TAGS" : ["embed", "reaction", "administration"],
+    "REQUIREMENTS" : [],
+    "HIDDEN" : false
+}
