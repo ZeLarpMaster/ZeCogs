@@ -150,7 +150,9 @@ get deleted **if** it's within the last {messages}. Don't worry, this won't get 
                 await self.bot.say("**There is no slowmode in {}.**".format(channel.mention))
             else:
                 await self.bot.say(self.get_slowmode_msg(channel, slowmode))
-        elif time > sys.maxsize or messages > sys.maxsize or max_time > sys.maxsize:
+        elif (time is not None and time > sys.maxsize) or \
+                (messages is not None and messages > sys.maxsize) or \
+                (max_time is not None and max_time > sys.maxsize):
             await self.bot.say(self.TIME_TOO_BIG)
         else:
             # Update current slowmode
