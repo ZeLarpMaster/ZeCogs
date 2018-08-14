@@ -172,8 +172,9 @@ get deleted **if** it's within the last {messages}. Don't worry, this won't get 
             else:
                 if channel.id not in self.slowmodes:
                     # Gather the overwrites
-                    member_overwrites = list(filter(lambda o: isinstance(o[0], discord.Member), channel.overwrites))
-                    new_slowmode["overwrites"].update(map(lambda o: (o[0].id, o[1].send_messages), member_overwrites))
+                    member_overwrites = ((o[0].id, o[1].send_messages) for o in channel.overwrites
+                                         if isinstance(o[0], discord.Member) and o[1].send_messages is not False)
+                    new_slowmode["overwrites"].update(member_overwrites)
                 else:
                     new_slowmode["overwrites"] = copy.deepcopy(self.slowmodes[channel.id]["overwrites"])
                     new_slowmode["unstoppable_roles"] = self.slowmodes[channel.id].get("unstoppable_roles", [])
@@ -194,7 +195,7 @@ get deleted **if** it's within the last {messages}. Don't worry, this won't get 
         for member in unmuting:
             self.debug("check_slow", "Unmuting user", member, "from", channel, "by running the check_slow")
             asyncio.ensure_future(self.unmute_user(channel, member, overwrites.get(member.id)))
-            self.debug("check_slow", "Unmuted user", member, "from", channel,"by running the check_slow")
+            self.debug("check_slow", "Unmuted user", member, "from", channel, "by running the check_slow")
         for page in pagify(result, delims=[", "], shorten_by=16):
             await self.bot.send_message(ctx.message.channel, page)
 
