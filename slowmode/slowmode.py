@@ -161,7 +161,7 @@ get deleted **if** it's within the last {messages}. Don't worry, this won't get 
                 (messages is not None and messages > sys.maxsize) or \
                 (max_time is not None and max_time > sys.maxsize):
             await self.bot.say(self.TIME_TOO_BIG)
-        elif time is not None and max_time is not None and time > max_time:
+        elif time is not None and max_time is not None and max_time > 0 and time > max_time:
             await self.bot.say(self.TIME_BIGGER_THAN_MAX_TIME)
         else:
             # Update current slowmode
