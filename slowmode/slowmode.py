@@ -61,6 +61,7 @@ get deleted **if** it's within the last {messages}. Don't worry, this won't get 
     TIME_TOO_BIG = (":x: Error: One of the given numbers is too big for my operating system! (max: {})\n"
                     "If you want an infinite number of seconds to prevent your users from typing ever again, "
                     "I suggest 31536000 (10 years) or 315360000 (100 years).").format(sys.maxsize)
+    TIME_BIGGER_THAN_MAX_TIME = ":x: The minimum amount of time can't be bigger than the maximum amount of time!"
     
     def __init__(self, bot: discord.Client):
         self.bot = bot
@@ -132,16 +133,21 @@ get deleted **if** it's within the last {messages}. Don't worry, this won't get 
             del self.temp_tasks[c_id]
     
     # Commands
-    @commands.command(pass_context=True)
+    @commands.group(pass_context=True, invoke_without_command=True)
     @checks.mod_or_permissions(manage_channels=True)
     async def slowmode(self, ctx, channel: discord.Channel=None,
                        time: int=None, messages: int=None, max_time: int=None):
         """Sends the current slowmode of a channel. Default: Current channel
-        If `time` is specified, changes the slowmode time to the given one.
-        If `messages` is specified, changes the slowmode messages to the given one.
-        If `max_time` is specified, changes the slowmode maximum muted time to the given one.
-        Sets the slowmode for a `channel` to `time` seconds, `messages` messages, and `max_time` seconds maximum.
-        If the `time` is 0, `messages` is 0, and `max_time` is 0, it disables the slowmode in that channel."""
+
+        If `time`, `messages`, and `max_time` aren't given, displays the current slowmode of the channel
+        If any of those is given, modifies the current slowmode of the channel.
+        If they're all zeroes (0), removes the slowmode from the channel.
+
+        `time` is a minimum amount of time the user should be muted for after sending a message
+        `messages` is a minimum amount of messages in between the user's messages
+        `max_time` is a maximum amount of time the user should be muted for
+
+        For a concrete example on what those parameters mean, use the `[p]slowmode example` command."""
         if channel is None:
             channel = ctx.message.channel
         if time is None and messages is None and max_time is None:
@@ -155,6 +161,8 @@ get deleted **if** it's within the last {messages}. Don't worry, this won't get 
                 (messages is not None and messages > sys.maxsize) or \
                 (max_time is not None and max_time > sys.maxsize):
             await self.bot.say(self.TIME_TOO_BIG)
+        elif time is not None and max_time is not None and time > max_time:
+            await self.bot.say(self.TIME_BIGGER_THAN_MAX_TIME)
         else:
             # Update current slowmode
             new_slowmode = copy.deepcopy(self.DEFAULT_SLOWMODE)
@@ -183,6 +191,36 @@ get deleted **if** it's within the last {messages}. Don't worry, this won't get 
                 response = ":white_check_mark: Slowmode updated.\n" + self.get_slowmode_msg(channel, new_slowmode)
                 await self.bot.say(response + ("" if can_manage else self.MISSING_MANAGE_PERMISSIONS))
             self.save_data()
+
+    @slowmode.command(name="example", pass_context=True)
+    @checks.mod_or_permissions(manage_channels=True)
+    async def slowmode_example(self, ctx):
+        """Sends a detailed example of how the slowmode works"""
+        await self.bot.send_message(ctx.message.channel, """**__Example__**
+
+The configuration 5 2 60 means:
+- When someone sends a message in that channel, they are "muted" (they lose the permission to send messages)
+- A minimum of 5 seconds must pass before a user is unmuted
+- A minimum of 2 messages must be sent before a user is unmuted
+- A maximum of 60 seconds can pass before a user is unmuted
+
+Person A, B, and C are talking in a channel with the slowmode configuration 5 2 60. None of them is currently muted.
+A says "hi" --> A gets muted
+8 seconds after "hi", B talks --> A and B are muted: 8 seconds passed since A's message, but only 1 message did
+10 seconds after "hi", C talks --> B and C are muted: A was unmuted, only 2 seconds passed since B's message
+12 seconds after "hi", A talks --> A, B, and C are muted: not enough time passed for any of them
+13 seconds after "hi" --> B is unmuted: enough time passed and enough messages were sent after B's message
+70 seconds after "hi", nobody talked --> C is unmuted: too much time passed since C's message; see note
+72 seconds after "hi", nobody talked --> A is unmuted too for the same reason; see note
+
+Note: When C and A get unmuted at 70 and 72 seconds respectively, they aren't actually unmuted.
+The maximum amount of time gives people the opportunity to edit their message (because they can't when muted)
+But if they send a new message still within the minimum `messages`, their previous message is deleted.
+This ensures there's at most one message per user every `messages` messages (in this case, every 2 messages).
+
+At 10 seconds, you can see the effect of the `messages` parameter
+At 13 seconds, you can see the effect of the `time` parameter
+At 70 and 72 seconds, you can see the effect of the `max_time` parameter""")
 
     @commands.group(name="check_slow", pass_context=True, invoke_without_command=True)
     @checks.mod_or_permissions(manage_channels=True)
