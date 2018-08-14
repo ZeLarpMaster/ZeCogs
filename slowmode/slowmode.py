@@ -69,6 +69,7 @@ get deleted **if** it's within the last {messages}. Don't worry, this won't get 
         self.load_data()
         self.message_trackers = {}
         self.tasks = []
+        self.debugging = []
         asyncio.ensure_future(self.check_temp_tasks())
     
     # Events
@@ -191,7 +192,9 @@ get deleted **if** it's within the last {messages}. Don't worry, this won't get 
                  "\n**Should be muted**: " + ", ".join(u.name for u in muting)
         overwrites = self.get_channel_slowmode(channel).get("overwrites", {})
         for member in unmuting:
+            self.debug("check_slow", "Unmuting user", member, "from", channel, "by running the check_slow")
             asyncio.ensure_future(self.unmute_user(channel, member, overwrites.get(member.id)))
+            self.debug("check_slow", "Unmuted user", member, "from", channel,"by running the check_slow")
         for page in pagify(result, delims=[", "], shorten_by=16):
             await self.bot.send_message(ctx.message.channel, page)
 
@@ -325,20 +328,28 @@ get deleted **if** it's within the last {messages}. Don't worry, this won't get 
             except (CancelledError, RuntimeError, GeneratorExit):
                 pass
             finally:
+                self.debug("unmute_user_later", "Unmuting user", user, "from the unmute_user_later method")
                 await self.unmute_user(channel, user, overwrite)
+                self.debug("unmute_user_later", "Unmuted user", user)
                 self.temp_tasks[channel.id] = list(filter(lambda i: i != user.id, self.temp_tasks[channel.id]))
                 self.save_temp_tasks()
     
     async def unmute_user(self, channel, user, overwrite):
+        self.debug("unmute_user", "Unmuting user", user, "from channel", channel, "with overwrite", overwrite)
         perms = channel.overwrites_for(user)
         if overwrite is None:
             perms.send_messages = None
         else:
             perms.send_messages = overwrite
+        self.debug("unmute_user", "New perms are empty?", perms.is_empty())
         if perms.is_empty():
+            self.debug("unmute_user", "Deleting permissions for", user, "in", channel)
             await self.bot.delete_channel_permissions(channel, user)
+            self.debug("unmute_user", "Deleted permissions for", user, "in", channel)
         else:
+            self.debug("unmute_user", "Editing permissions for", user, "in", channel)
             await self.bot.edit_channel_permissions(channel, user, perms)
+            self.debug("unmute_user", "Editing permissions for", user, "in", channel)
     
     async def get_member_last_msg_time(self, channel, member):
         slowmode = self.get_channel_slowmode(channel)
@@ -466,6 +477,10 @@ get deleted **if** it's within the last {messages}. Don't worry, this won't get 
             result = singular_format.format(raw_amount)
         return result
     
+    def debug(self, flag, *args, **kwargs):
+        if flag in self.debugging:
+            print(*args, **kwargs)
+
     # Config
     def check_configs(self):
         self.check_folders()
