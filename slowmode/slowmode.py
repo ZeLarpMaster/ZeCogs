@@ -347,6 +347,7 @@ get deleted **if** it's within the last {messages}. Don't worry, this won't get 
             await self.bot.delete_channel_permissions(channel, user)
             self.debug("unmute_user", "Deleted permissions for", user, "in", channel)
         else:
+            self.debug("unmute_user", "Permissions weren't empty. They are:" perms.value)
             self.debug("unmute_user", "Editing permissions for", user, "in", channel)
             await self.bot.edit_channel_permissions(channel, user, perms)
             self.debug("unmute_user", "Editing permissions for", user, "in", channel)
