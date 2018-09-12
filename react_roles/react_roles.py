@@ -9,6 +9,7 @@ import re
 import logging
 import itertools
 import contextlib
+import collections
 
 from discord.ext import commands
 from .utils import checks
@@ -75,6 +76,7 @@ Gave a total of {g} roles."""
     UNLINK_NOT_FOUND = ":x: Could not find a link with that name in this server."
     UNLINK_SUCCESSFUL = ":white_check_mark: The link has been removed from this server."
     CANT_CHECK_LINKED = ":x: Cannot run a check on linked messages."
+    CANT_GIVE_ROLE = ":x: I can't give that role! Maybe it's higher than my own highest role?"
 
     def __init__(self, bot: discord.Client):
         self.bot = bot
@@ -125,6 +127,7 @@ Gave a total of {g} roles."""
                         links.remove(pair)
     
     async def _init_bot_manipulation(self):
+        counter = collections.Counter()
         await self.bot.wait_until_ready()
         for server_id, server_conf in self.config.items():
             server = self.bot.get_server(server_id)
@@ -140,6 +143,7 @@ Gave a total of {g} roles."""
                                     role = discord.utils.get(server.roles, id=role_id)
                                     if role is not None:
                                         self.add_to_cache(server_id, channel_id, msg_id, emoji_str, role)
+                                        counter.update((channel.name, ))
                             else:
                                 self.logger.warning("Could not find message {} in {}".format(msg_id, channel.mention))
                     else:
@@ -150,6 +154,7 @@ Gave a total of {g} roles."""
                     self.parse_links(server_id, link_list.values())
             else:
                 self.logger.warning("Could not find server with id {}".format(server_id))
+        self.logger.info("Cached bindings: {}".format(", ".join(": ".join(map(str, pair)) for pair in counter.items())))
 
     def __unload(self):
         # This method is ran whenever the bot unloads this cog.
@@ -291,12 +296,21 @@ Gave a total of {g} roles."""
                     except discord.HTTPException:  # Failed to find the emoji
                         response = self.EMOJI_NOT_FOUND
                     else:
-                        self.add_to_cache(server.id, channel.id, message_id, emoji_id, role)
-                        msg_conf[emoji_id] = role.id
-                        self.save_data()
-                        response = self.ROLE_SUCCESSFULLY_BOUND.format(str(emoji or emoji_id), channel.mention)
-                        if self.bot.get_cog("ClientModification") is None:
-                            response += self.NO_CLIENT_MODIFICATION
+                        try:
+                            await self.bot.add_roles(ctx.message.author, role)
+                            await self.bot.remove_roles(ctx.message.author, role)
+                        except (discord.Forbidden, discord.HTTPException):
+                            response = self.CANT_GIVE_ROLE
+                            await self.bot.remove_reaction(message, emoji or emoji_id)
+                        else:
+                            self.add_to_cache(server.id, channel.id, message_id, emoji_id, role)
+                            msg_conf[emoji_id] = role.id
+                            self.save_data()
+                            response = self.ROLE_SUCCESSFULLY_BOUND.format(str(emoji or emoji_id), channel.mention)
+                            if self.bot.get_cog("ClientModification") is None:
+                                response += self.NO_CLIENT_MODIFICATION
+                            else:
+                                self.add_cache_message(message)
         await self.bot.send_message(ctx.message.channel, response)
     
     @_roles.command(name="remove", pass_context=True, no_pm=True)
