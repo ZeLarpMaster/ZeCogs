@@ -94,6 +94,7 @@ class EmbedReactor:
             response = self.TOO_MANY_REACTIONS
         elif len(reactions) == 0:
             self.config.pop(channel.id, None)
+            self.save_data()
             self.preprocessed_config.pop(channel.id, None)
             response = self.REMOVED_CHANNEL_REACTOR.format(channel.mention)
         elif channel.server is None:
