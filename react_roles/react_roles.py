@@ -301,7 +301,7 @@ Gave a total of {g} roles."""
                             await self.bot.remove_roles(ctx.message.author, role)
                         except (discord.Forbidden, discord.HTTPException):
                             response = self.CANT_GIVE_ROLE
-                            await self.bot.remove_reaction(message, emoji or emoji_id)
+                            await self.bot.remove_reaction(message, emoji or emoji_id, self.bot.user)
                         else:
                             self.add_to_cache(server.id, channel.id, message_id, emoji_id, role)
                             msg_conf[emoji_id] = role.id
