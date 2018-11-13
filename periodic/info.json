@@ -1,0 +1,10 @@
+{
+    "AUTHOR" : "ZeLarpMaster#0818",
+    "INSTALL_MSG" : "Enjoy sending messages periodically",
+    "NAME" : "Periodic",
+    "SHORT" : "Allows you to send messages or custom commands in channels periodically.",
+    "DESCRIPTION" : "Send messages and/or custom commands in channels every X messages and/or every Y seconds. You can specify different messages/customcommands with different intervals in different channels.",
+    "TAGS" : ["periodic", "messages", "automation", "administration"],
+    "REQUIREMENTS" : [],
+    "HIDDEN" : false
+}
