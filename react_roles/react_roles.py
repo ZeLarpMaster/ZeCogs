@@ -462,7 +462,7 @@ Gave a total of {g} roles."""
     async def safe_get_message(self, channel, message_id):
         try:
             result = await self.bot.get_message(channel, message_id)
-        except discord.errors.NotFound:
+        except discord.errors.DiscordException:
             result = None
         return result
 
