@@ -128,7 +128,7 @@ class Periodic:
 
     async def on_message(self, message: discord.Message):
         channel_id = message.channel.id
-        if channel_id in self.channel_messages:
+        if not message.author.bot and channel_id in self.channel_messages:
             self.channel_messages[channel_id] -= 1
             if self.channel_messages[channel_id] <= 0:
                 event = self.channel_events.get(channel_id)
