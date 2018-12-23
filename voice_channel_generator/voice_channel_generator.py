@@ -133,8 +133,7 @@ and are considered **False** for: `no`, `n`, `0`, `false`
     async def _voice_gen_reset(self):
         """Resets the listener for the channel generation"""
         # Basically call [p]reload on self
-        await self.bot.get_command("reload").callback(self.bot.get_cog("Owner"),
-                                                      cog_name="cogs.voice_channel_generator")
+        await self.bot.get_command("reload").callback(self.bot.get_cog("Owner"), "cogs.voice_channel_generator")
     
     @_voice_gen.command(name="set", pass_context=True, no_pm=True)
     @checks.mod_or_permissions(manage_channels=True)
