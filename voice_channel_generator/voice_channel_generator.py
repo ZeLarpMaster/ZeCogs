@@ -278,12 +278,12 @@ and are considered **False** for: `no`, `n`, `0`, `false`
         """Add a new voice channel generator
 
         parent_id must be the id of a channel category; if no channel is found, channels will be outside all categories
-        The generator must contain "{}" exactly once. Examples: `Voice Chat #{}`, `Channel {}/20`, `Casual {}`
+        The generator must contain "{}" exactly once. Examples: `Voice Chat #{}`, `Channel {}/20` or `Casual {}`
         It will be replaced by a number starting at 1 and going up."""
         server = ctx.message.server
         server_config = self.get_server_config(server)
         voice_formats = server_config["voice_chat_formats"]
-        if generator.count("{}") != 1:
+        if not self.test_generator(generator):
             await self.bot.say(self.INVALID_CHANNEL_FORMAT_MSG)
         elif generator.lower() in list(map(lambda s: s.lower(), voice_formats.keys())):
             await self.bot.say(self.CHANNEL_FORMAT_EXISTS_MSG)
@@ -436,6 +436,13 @@ and are considered **False** for: `no`, `n`, `0`, `false`
         data = await self.bot.http.request(discord.http.Route('POST', '/guilds/{guild_id}/channels',
                                                               guild_id=server.id), json=payload)
         return discord.Channel(server=server, **data)
+
+    def test_generator(self, generator: str):
+        try:
+            generator.format(1)
+            return True
+        except IndexError:
+            return False
 
     def update_channels_position(self, server, channel_type=discord.ChannelType.voice):
         """Puts all channels in `server` of type `channel_type`'s position back in order"""
