@@ -205,6 +205,7 @@ You can now use `{p}voice permit @user` to allow the user to join you or `{p}voi
             for member in channel.voice_members + permits + list(additionnal_members):
                 if member is not None:
                     await self.bot.delete_channel_permissions(channel, member)
+                    await self.bot.edit_channel_permissions(channel, channel.server.default_role, self.can_connect_perms)
         except discord.NotFound:
             self.logger.warning("Could not find the channel while unlocking.")
         del self.config["locks"][channel.id]
