@@ -337,7 +337,7 @@ At 70 and 72 seconds, you can see the effect of the `max_time` parameter""")
         should_mute = set()
         async for message in self.bot.logs_from(channel, limit=minimum_messages):
             should_mute.add(message.author)
-        async for message in self.bot.logs_from(channel, limit=500, after=end_time):
+        async for message in self.bot.logs_from(channel, limit=1000, after=end_time):
             should_mute.add(message.author)
         unmuting = members - should_mute
         return unmuting, should_mute
@@ -457,9 +457,9 @@ At 70 and 72 seconds, you can see the effect of the `max_time` parameter""")
             slowmode = self.get_channel_slowmode(channel)
         max_time_str = "no maximum time" if slowmode["max_time"] == 0 else "maximum " + \
                                                                            self.humanize_time(slowmode["max_time"])
-        return self.SLOWMODE_FORMAT.format(channel=channel.mention, time=self.humanize_time(slowmode["time"]),
-                                           msgs=self.plural_format(slowmode["messages"], "{} messages"),
-                                           max_time=max_time_str)
+        time_str = "no time" if slowmode["time"] else self.humanize_time(slowmode["time"])
+        return self.SLOWMODE_FORMAT.format(channel=channel.mention, time=time_str, max_time=max_time_str,
+                                           msgs=self.plural_format(slowmode["messages"], "{} messages"))
 
     def check_mod_or_admin(self, member, *additional_roles):
         result = False
