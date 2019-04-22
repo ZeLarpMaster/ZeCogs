@@ -108,16 +108,22 @@ You can now use `{p}voice permit @user` to allow the user to join you or `{p}voi
         """Unlocks the voice channel you're in"""
         message = ctx.message
         author = message.author
-        if author.voice_channel is None:
-            response = self.NOT_IN_CHANNEL_MSG
+        channel = message.channel
+        server = message.server
+        exclusive = self.config.get("exclusivities", {}).get(server.id)
+        if exclusive is not None and exclusive != channel.id:
+            response = self.WRONG_CHANNEL.format(exclusive)
         else:
-            channel = author.voice_channel
-            if channel.id not in self.config["locks"]:
-                response = self.CHANNEL_NOT_LOCKED.format(channel.name)
+            if author.voice_channel is None:
+                response = self.NOT_IN_CHANNEL_MSG
             else:
-                await self.unlock_channel(channel)
-                self.save_data()
-                response = self.CHANNEL_UNLOCKED.format(channel.name)
+                channel = author.voice_channel
+                if channel.id not in self.config["locks"]:
+                    response = self.CHANNEL_NOT_LOCKED.format(channel.name)
+                else:
+                    await self.unlock_channel(channel)
+                    self.save_data()
+                    response = self.CHANNEL_UNLOCKED.format(channel.name)
         await self.temp_send(message.channel, [message], response)
     
     @voice.command(name="force_unlock", pass_context=True)
