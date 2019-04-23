@@ -25,20 +25,16 @@ class MessageProxy:
     CONFIG_DEFAULT = {}
 
     # Message constants
-    MESSAGE_SENT = ":white_check_mark: The message has been sent in {}."
-    MESSAGE_EDITED = ":white_check_mark: The message has been edited."
+    MESSAGE_LINK = "<https://discordapp.com/channels/{s}/{c}/{m}>"
+    MESSAGE_SENT = ":white_check_mark: Sent " + MESSAGE_LINK
     FAILED_TO_FIND_MESSAGE = ":x: Failed to find the message with id {} in {}."
+    COMMAND_FORMAT = "{p}msg edit <#{c_id}> {m_id} ```\n{content}```"
 
     def __init__(self, bot: discord.Client):
         self.bot = bot
         self.logger = logging.getLogger("red.ZeCogs.message_proxy")
         self.check_configs()
         self.load_data()
-
-    # Events
-    def __unload(self):
-        # This method is ran whenever the bot unloads this cog.
-        pass
 
     # Commands
     @commands.group(name="message", aliases=["msg"], pass_context=True, no_pm=True, invoke_without_command=True)
@@ -60,12 +56,19 @@ class MessageProxy:
             async with aiohttp.ClientSession() as session:
                 async with session.get(url=attachment[0], headers={"User-Agent": "Mozilla"}) as response:
                     file = io.BytesIO(await response.read())
+            print(file.tell())
+            file.seek(0)
+            print(file.tell())
             msg = await self.bot.send_file(channel, file, content=content and "Placeholder", filename=attachment[1])
         else:
             msg = await self.bot.send_message(channel, "Placeholder")
         if content is not None:
             await self.bot.edit_message(msg, new_content=content)
-        await self.bot.send_message(message.channel, self.MESSAGE_SENT.format(channel.mention))
+            reply = self.COMMAND_FORMAT.format(p=ctx.prefix, content=content, m_id=msg.id, c_id=channel.id)
+            await self.bot.delete_message(ctx.message)
+        else:
+            reply = self.MESSAGE_SENT.format(m=msg.id, c=channel.id, s=channel.server.id)
+        await self.bot.send_message(message.channel, reply)
 
     @_messages.command(name="edit", pass_context=True)
     @checks.mod_or_permissions(manage_server=True)
@@ -79,13 +82,16 @@ class MessageProxy:
             response = self.FAILED_TO_FIND_MESSAGE.format(message_id, channel.mention)
         else:
             await self.bot.edit_message(msg, new_content=new_content)
-            response = self.MESSAGE_EDITED
+            response = self.COMMAND_FORMAT.format(p=ctx.prefix, content=new_content, m_id=msg.id, c_id=channel.id)
+            await self.bot.delete_message(ctx.message)
         await self.bot.send_message(ctx.message.channel, response)
 
     # Utilities
     def get_attachment(self, message):
-        image_attachments = list(message.attachments)
-        return (image_attachments[0]["url"], image_attachments[0]["filename"]) if len(image_attachments) > 0 else None
+        if not message.attachments:
+            return None
+        attachment = message.attachments[0]
+        return attachment["url"], attachment["filename"]
 
     # Config
     def get_config(self, server_id):
@@ -119,7 +125,4 @@ class MessageProxy:
 
 
 def setup(bot):
-    # Creating the cog
-    c = MessageProxy(bot)
-    # Finally, add the cog to the bot.
-    bot.add_cog(c)
+    bot.add_cog(MessageProxy(bot))
