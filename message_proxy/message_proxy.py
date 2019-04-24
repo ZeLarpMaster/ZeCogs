@@ -17,13 +17,6 @@ from .utils.dataIO import dataIO
 class MessageProxy:
     """Send and edit messages through the bot"""
 
-    # File related constants
-    DATA_FOLDER = "data/message_proxy"
-    CONFIG_FILE_PATH = DATA_FOLDER + "/config.json"
-
-    # Configuration defaults
-    CONFIG_DEFAULT = {}
-
     # Message constants
     MESSAGE_LINK = "<https://discordapp.com/channels/{s}/{c}/{m}>"
     MESSAGE_SENT = ":white_check_mark: Sent " + MESSAGE_LINK
@@ -33,8 +26,6 @@ class MessageProxy:
     def __init__(self, bot: discord.Client):
         self.bot = bot
         self.logger = logging.getLogger("red.ZeCogs.message_proxy")
-        self.check_configs()
-        self.load_data()
 
     # Commands
     @commands.group(name="message", aliases=["msg"], pass_context=True, no_pm=True, invoke_without_command=True)
@@ -56,9 +47,6 @@ class MessageProxy:
             async with aiohttp.ClientSession() as session:
                 async with session.get(url=attachment[0], headers={"User-Agent": "Mozilla"}) as response:
                     file = io.BytesIO(await response.read())
-            print(file.tell())
-            file.seek(0)
-            print(file.tell())
             msg = await self.bot.send_file(channel, file, content=content and "Placeholder", filename=attachment[1])
         else:
             msg = await self.bot.send_message(channel, "Placeholder")
@@ -92,36 +80,6 @@ class MessageProxy:
             return None
         attachment = message.attachments[0]
         return attachment["url"], attachment["filename"]
-
-    # Config
-    def get_config(self, server_id):
-        config = self.config.get(server_id)
-        if config is None:
-            self.config[server_id] = copy.deepcopy(self.SERVER_DEFAULT)
-        return self.config.get(server_id)
-
-    def check_configs(self):
-        self.check_folders()
-        self.check_files()
-
-    def check_folders(self):
-        if not os.path.exists(self.DATA_FOLDER):
-            print("Creating data folder...")
-            os.makedirs(self.DATA_FOLDER, exist_ok=True)
-
-    def check_files(self):
-        self.check_file(self.CONFIG_FILE_PATH, self.CONFIG_DEFAULT)
-
-    def check_file(self, file, default):
-        if not dataIO.is_valid_json(file):
-            print("Creating empty " + file + "...")
-            dataIO.save_json(file, default)
-
-    def load_data(self):
-        self.config = dataIO.load_json(self.CONFIG_FILE_PATH)
-
-    def save_data(self):
-        dataIO.save_json(self.CONFIG_FILE_PATH, self.config)
 
 
 def setup(bot):
