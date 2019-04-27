@@ -158,7 +158,7 @@ class VoiceLogs:
                 self.config["users"][user_id].remove(entry)
 
     def process_entries(self, entries, *, limit=None):
-        return sorted(self.map_entries(entries), key=lambda o: o.get("left_at", datetime.now(timezone.utc)), reverse=True)[:limit]
+        return sorted(self.map_entries(entries), key=lambda o: o["joined_at"], reverse=True)[:limit]
 
     def map_entries(self, entries):
         for entry in entries:
