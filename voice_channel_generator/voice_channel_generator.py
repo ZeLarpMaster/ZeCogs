@@ -372,7 +372,6 @@ and are considered **False** for: `no`, `n`, `0`, `false`
                     missing_number = min(set(range(1, channel_config["max_channels"] + 1)) - set(channel_ids))
                     ows = self.perms_overwrites.get(server.id, {}).get(channel_format, [])
                     chann = await self.create_channel(server, channel_format.format(missing_number), *ows,
-                                                      channel_type=discord.ChannelType.voice,
                                                       parent_id=channel_config["parent"],
                                                       user_limit=channel_config["user_limit"])
                     if len(channel_ids) > 0:
@@ -414,12 +413,11 @@ and are considered **False** for: `no`, `n`, `0`, `false`
         if self.config[server.id]["afk_at_bottom"] and server.afk_channel is not None:
             await self.bot.move_channel(server.afk_channel, len(voice_channels) - 1)
 
-    async def create_channel(self, server, name, *overwrites,
-                             parent_id, user_limit: int=0, channel_type=discord.ChannelType.text):
+    async def create_channel(self, server, name, *overwrites, parent_id, user_limit: int=0):
         """d.py 0.16 recipe for creating a channel including category support"""
         payload = {
             "name": name,
-            "type": str(channel_type),
+            "type": 2,
             "user_limit": user_limit
         }
         if parent_id is not None:
