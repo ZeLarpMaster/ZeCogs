@@ -1,3 +1,5 @@
+# NOT MAINTAINED ANYMORE. USE AT YOUR OWN RISK
+
 # ZeCogs (V2)
 My cogs repository for [Red-DiscordBot](https://github.com/Twentysix26/Red-DiscordBot) V2 (**NOT V3**)
 
